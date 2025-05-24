@@ -1,0 +1,46 @@
+
+// Firebase Configuration Template for ICCT RFID System
+// Replace the placeholder values with your actual Firebase project credentials
+
+export const firebaseConfig = {
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com/",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+// Steps to get your Firebase credentials:
+// 1. Go to https://console.firebase.google.com/
+// 2. Create a new project or select existing project
+// 3. Go to Project Settings (gear icon)
+// 4. Scroll down to "Your apps" section
+// 5. Click "Add app" and select Web app (</>) 
+// 6. Register your app with name "ICCT RFID System"
+// 7. Copy the config object values
+// 8. Enable Realtime Database in the Database section
+// 9. Set security rules to allow read/write (for development):
+//    {
+//      "rules": {
+//        ".read": true,
+//        ".write": true
+//      }
+//    }
+// 10. Import the dummy data from src/data/dummyData.json to your database
+
+// Database Structure:
+// your-database/
+// ├── students/
+// │   ├── TA202200470/
+// │   ├── TA202200471/
+// │   └── ...
+// ├── adminUsers/
+// │   ├── ICCTADMIN01/
+// │   └── ...
+// ├── attendanceRecords/
+// │   ├── TA202200470/
+// │   └── ...
+// ├── absenteeAlerts/
+// └── schedules/

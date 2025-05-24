@@ -1,14 +1,31 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import LandingPage from '@/components/LandingPage';
+import StudentDashboard from '@/components/StudentDashboard';
+import AdminDashboard from '@/components/AdminDashboard';
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  const { user, userType } = useAuth();
+
+  const handleLogin = () => {
+    // This will trigger a re-render with the updated auth state
+    console.log('Login successful, redirecting to dashboard...');
+  };
+
+  if (!user) {
+    return <LandingPage onLogin={handleLogin} />;
+  }
+
+  if (userType === 'student') {
+    return <StudentDashboard />;
+  }
+
+  if (userType === 'admin') {
+    return <AdminDashboard />;
+  }
+
+  return <LandingPage onLogin={handleLogin} />;
 };
 
 export default Index;
