@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,13 +17,17 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const loadAdminData = async () => {
       try {
-        const dummyData: DummyDataStructure = await import('../data/dummyData.json');
+        // Import the dummy data and explicitly type it
+        const dummyDataModule = await import('../data/dummyData.json');
+        const dummyData = dummyDataModule.default as any; // Use any to bypass initial type checking
         
-        // Type assertion to ensure compatibility
+        console.log('Loading admin data...', dummyData);
+        
+        // Type assertion with proper conversion for attendance records
         const typedAttendance: AttendanceData = {};
-        Object.entries(dummyData.attendanceRecords).forEach(([studentId, records]) => {
+        Object.entries(dummyData.attendanceRecords || {}).forEach(([studentId, records]) => {
           typedAttendance[studentId] = {};
-          Object.entries(records).forEach(([date, record]) => {
+          Object.entries(records as Record<string, any>).forEach(([date, record]) => {
             typedAttendance[studentId][date] = {
               status: record.status as 'present' | 'absent' | 'late',
               timeIn: record.timeIn,
@@ -34,7 +37,9 @@ const AdminDashboard: React.FC = () => {
         });
         
         setAttendanceData(typedAttendance);
-        setStudents(dummyData.students);
+        setStudents(dummyData.students || {});
+        
+        console.log('Admin data loaded successfully');
       } catch (error) {
         console.error('Error loading admin data:', error);
       }
