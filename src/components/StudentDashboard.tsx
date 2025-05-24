@@ -5,13 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Settings } from 'lucide-react';
-
-interface AttendanceRecord {
-  status: 'present' | 'absent' | 'late';
-  timeIn?: string;
-  timeOut?: string;
-}
+import { Calendar } from 'lucide-react';
+import { AttendanceRecord } from '@/types/attendance';
 
 const StudentDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -26,7 +21,9 @@ const StudentDashboard: React.FC = () => {
         const studentSchedule = dummyData.schedules[user.id as keyof typeof dummyData.schedules];
         
         if (studentAttendance) {
-          setAttendanceData(studentAttendance);
+          // Type assertion to ensure compatibility
+          const typedAttendance = studentAttendance as Record<string, AttendanceRecord>;
+          setAttendanceData(typedAttendance);
         }
         if (studentSchedule) {
           setSchedule(studentSchedule);

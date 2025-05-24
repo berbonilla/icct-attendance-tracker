@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Settings, Search } from 'lucide-react';
+import { Settings } from 'lucide-react';
+import { testFirebaseConnection } from '@/utils/firebaseTest';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -18,6 +19,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState('');
   const [adminId, setAdminId] = useState('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const { login, isLoading } = useAuth();
 
   const handleIdSubmit = async (e: React.FormEvent) => {
@@ -76,13 +78,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     }
   };
 
-  const testFirebaseConnection = () => {
-    // Simulate Firebase connection test
-    toast({
-      title: "Connection Status",
-      description: "Connected: 200 OK - Firebase Database Connected",
-      variant: "default"
-    });
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
+    try {
+      const result = await testFirebaseConnection();
+      toast({
+        title: "Connection Status",
+        description: result.message,
+        variant: result.success ? "default" : "destructive"
+      });
+    } catch (error) {
+      toast({
+        title: "Connection Status",
+        description: "Connection test failed",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   return (
@@ -145,12 +158,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
         {/* Firebase Connection Test */}
         <Button 
-          onClick={testFirebaseConnection}
+          onClick={handleTestConnection}
           variant="outline"
           className="w-full bg-white/10 border-white/30 text-white hover:bg-white/20"
+          disabled={isTestingConnection}
         >
           <Settings className="w-4 h-4 mr-2" />
-          Test Database Connection
+          {isTestingConnection ? 'Testing Connection...' : 'Test Database Connection'}
         </Button>
       </div>
 
