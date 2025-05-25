@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState('');
   const [adminId, setAdminId] = useState('');
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, autoAdminMode, pendingRFID } = useAuth();
+
+  // Auto-open admin login when RFID detection triggers it
+  useEffect(() => {
+    if (autoAdminMode && pendingRFID) {
+      setShowPasswordDialog(true);
+    }
+  }, [autoAdminMode, pendingRFID]);
 
   const handleIdSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +38,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       return;
     }
 
-    // Check if it's a student ID (starts with TA)
     if (idInput.startsWith('TA')) {
       const success = await login(idInput);
       if (success) {
@@ -48,7 +54,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         });
       }
     } else {
-      // Admin ID - show password dialog
       setAdminId(idInput);
       setShowPasswordDialog(true);
     }
@@ -82,37 +87,63 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-white">ICCT RFID System</h1>
           <p className="text-gray-light">Student Attendance Management</p>
+          {pendingRFID && (
+            <p className="text-yellow-300 text-sm">
+              Unregistered RFID detected: {pendingRFID}
+            </p>
+          )}
         </div>
 
         {/* Main Login Card */}
         <Card className="bg-white shadow-2xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-dark-blue">Access System</CardTitle>
+            <CardTitle className="text-2xl text-dark-blue">
+              {autoAdminMode ? 'Admin Authentication Required' : 'Access System'}
+            </CardTitle>
             <CardDescription>
-              Enter your Student ID (TA202200XXX) or Admin ID
+              {autoAdminMode 
+                ? 'Please login as admin to register the new RFID'
+                : 'Enter your Student ID (TA202200XXX) or Admin ID'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleIdSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="id" className="text-dark-blue">ID Number</Label>
-                <Input
-                  id="id"
-                  type="text"
-                  placeholder="Enter Student ID or Admin ID"
-                  value={idInput}
-                  onChange={(e) => setIdInput(e.target.value)}
-                  className="border-gray-medium focus:border-light-blue"
-                />
+            {!autoAdminMode && (
+              <form onSubmit={handleIdSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="id" className="text-dark-blue">ID Number</Label>
+                  <Input
+                    id="id"
+                    type="text"
+                    placeholder="Enter Student ID or Admin ID"
+                    value={idInput}
+                    onChange={(e) => setIdInput(e.target.value)}
+                    className="border-gray-medium focus:border-light-blue"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-dark-blue hover:bg-light-blue text-white"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Accessing...' : 'Access System'}
+                </Button>
+              </form>
+            )}
+            
+            {autoAdminMode && (
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">
+                  An unregistered RFID was detected. Admin login required to register new student.
+                </p>
+                <Button 
+                  onClick={() => setShowPasswordDialog(true)}
+                  className="w-full bg-dark-blue hover:bg-light-blue text-white"
+                >
+                  Admin Login
+                </Button>
               </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-dark-blue hover:bg-light-blue text-white"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Accessing...' : 'Access System'}
-              </Button>
-            </form>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -123,10 +154,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           <DialogHeader>
             <DialogTitle className="text-dark-blue">Admin Authentication</DialogTitle>
             <DialogDescription>
-              Please enter your password to access the admin dashboard
+              {pendingRFID 
+                ? `Please enter admin credentials to register RFID: ${pendingRFID}`
+                : "Please enter your password to access the admin dashboard"
+              }
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="admin-id" className="text-dark-blue">Admin ID</Label>
+              <Input
+                id="admin-id"
+                value={adminId}
+                onChange={(e) => setAdminId(e.target.value)}
+                placeholder="Enter admin ID"
+                className="border-gray-medium focus:border-light-blue"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="password" className="text-dark-blue">Password</Label>
               <Input

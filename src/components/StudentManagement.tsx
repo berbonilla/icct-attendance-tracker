@@ -105,11 +105,11 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       return;
     }
 
-    // Validate RFID format (8 hex characters)
-    if (!/^[A-Fa-f0-9]{8}$/.test(formData.rfid)) {
+    // Validate RFID format (XX:XX:XX:XX)
+    if (!/^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$/.test(formData.rfid)) {
       toast({
         title: "Error",
-        description: "RFID must be exactly 8 hexadecimal characters",
+        description: "RFID must be in format XX:XX:XX:XX (e.g., BD:31:1B:2A)",
         variant: "destructive"
       });
       return;
@@ -218,7 +218,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   };
 
   const formatRFIDDisplay = (rfid: string) => {
-    return rfid.toUpperCase().replace(/(.{2})/g, '$1 ').trim();
+    return rfid.toUpperCase();
   };
 
   return (
