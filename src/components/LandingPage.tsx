@@ -7,8 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Settings } from 'lucide-react';
-import { testFirebaseConnection } from '@/utils/firebaseTest';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -19,7 +17,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState('');
   const [adminId, setAdminId] = useState('');
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const { login, isLoading } = useAuth();
 
   const handleIdSubmit = async (e: React.FormEvent) => {
@@ -78,26 +75,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     }
   };
 
-  const handleTestConnection = async () => {
-    setIsTestingConnection(true);
-    try {
-      const result = await testFirebaseConnection();
-      toast({
-        title: "Connection Status",
-        description: result.message,
-        variant: result.success ? "default" : "destructive"
-      });
-    } catch (error) {
-      toast({
-        title: "Connection Status",
-        description: "Connection test failed",
-        variant: "destructive"
-      });
-    } finally {
-      setIsTestingConnection(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-blue to-light-blue flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
@@ -138,34 +115,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             </form>
           </CardContent>
         </Card>
-
-        {/* Test Credentials Card */}
-        <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-          <CardHeader>
-            <CardTitle className="text-white text-lg">Test Credentials</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-gray-light">
-            <div>
-              <p className="font-semibold">Student IDs:</p>
-              <p>TA202200470, TA202200471, TA202200472, TA202200473</p>
-            </div>
-            <div>
-              <p className="font-semibold">Admin Login:</p>
-              <p>ID: ICCTADMIN01 | Password: icct1234</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Firebase Connection Test */}
-        <Button 
-          onClick={handleTestConnection}
-          variant="outline"
-          className="w-full bg-white/10 border-white/30 text-white hover:bg-white/20"
-          disabled={isTestingConnection}
-        >
-          <Settings className="w-4 h-4 mr-2" />
-          {isTestingConnection ? 'Testing Connection...' : 'Test Database Connection'}
-        </Button>
       </div>
 
       {/* Admin Password Dialog */}
