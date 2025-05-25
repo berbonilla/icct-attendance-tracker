@@ -1,0 +1,98 @@
+
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "students": {
+      ".indexOn": ["rfid", "name"],
+      "$studentId": {
+        ".validate": "newData.hasChildren(['name', 'rfid', 'email', 'course', 'year', 'section'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "rfid": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Fa-f0-9]{8}$/)"
+        },
+        "email": {
+          ".validate": "newData.isString() && newData.val().contains('@')"
+        },
+        "course": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "year": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "section": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        }
+      }
+    },
+    "adminUsers": {
+      ".indexOn": ["email"],
+      "$adminId": {
+        ".validate": "newData.hasChildren(['name', 'password', 'role', 'email'])",
+        "password": {
+          ".validate": "newData.isString() && newData.val().length >= 6"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "role": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "email": {
+          ".validate": "newData.isString() && newData.val().contains('@')"
+        }
+      }
+    },
+    "scannedRFIDs": {
+      ".indexOn": ["timestamp"],
+      "$rfidId": {
+        ".validate": "newData.hasChildren(['id', 'timestamp'])",
+        "id": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Fa-f0-9]{8}$/)"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+    "attendanceRecords": {
+      ".indexOn": ["status"],
+      "$studentId": {
+        "$date": {
+          ".validate": "newData.hasChild('status')",
+          "status": {
+            ".validate": "newData.isString() && (newData.val() === 'present' || newData.val() === 'absent' || newData.val() === 'late')"
+          },
+          "timeIn": {
+            ".validate": "newData.isString() || !newData.exists()"
+          },
+          "timeOut": {
+            ".validate": "newData.isString() || !newData.exists()"
+          }
+        }
+      }
+    },
+    "schedules": {
+      "$studentId": {
+        "$day": {
+          ".validate": "newData.val() === null || (newData.isString() && newData.val().length > 0) || root.child('students').child($studentId).exists()"
+        }
+      }
+    },
+    "absenteeAlerts": {
+      "$date": {
+        ".validate": "newData.val() === null || newData.val().length >= 0"
+      }
+    },
+    "rfidQueue": {
+      ".indexOn": ["timestamp"],
+      "$queueId": {
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    }
+  }
+}
