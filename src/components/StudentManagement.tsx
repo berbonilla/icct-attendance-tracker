@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Edit, Trash, Search, Settings } from 'lucide-react';
@@ -173,23 +173,15 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         }
       }));
       
-      // Success notification for RFID registration
-      if (pendingRFID) {
-        toast({
-          title: "Registration Success",
-          description: `Student ${formData.name} has been registered with RFID ${formData.rfid.toUpperCase().replace(/(.{2})/g, '$1 ').trim()}`,
-          duration: 5000
-        });
-        
-        // Notify parent component
-        if (onStudentRegistered) {
-          onStudentRegistered();
-        }
-      } else {
-        toast({
-          title: "Success",
-          description: `Student added successfully with ID: ${newId}`
-        });
+      toast({
+        title: "Registration Success",
+        description: `Student ${formData.name} has been registered successfully with ID: ${newId}`,
+        duration: 5000
+      });
+      
+      // Notify parent component
+      if (onStudentRegistered) {
+        onStudentRegistered();
       }
       
       setIsAddDialogOpen(false);
@@ -331,7 +323,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         </Card>
       )}
 
-      {/* Enhanced Add Student Dialog with RFID pre-fill */}
+      {/* Add Student Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
         setIsAddDialogOpen(open);
         if (!open) resetForm();
@@ -370,7 +362,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 className={pendingRFID ? "bg-gray-100" : ""}
               />
               {pendingRFID && (
-                <p className="text-sm text-gray-600">RFID pre-filled from detected card</p>
+                <p className="text-sm text-gray-600">RFID pre-filled from scanned card</p>
               )}
             </div>
             <div className="space-y-2">

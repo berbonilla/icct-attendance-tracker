@@ -36,12 +36,13 @@
   },
   "adminUsers": {
     "ICCTADMIN01": {
-      "password": "admin123",
+      "password": "icct1234",
       "name": "Mr. John Admin",
       "role": "Administrator",
       "email": "admin@icct.edu.ph"
     }
   },
+  "scannedRFIDs": {},
   "attendanceRecords": {
     "TA202200470": {
       "2024-05-20": { "status": "present", "timeIn": "07:30", "timeOut": "16:30" },
