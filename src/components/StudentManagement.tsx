@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,15 @@ interface Student {
   section: string;
 }
 
-const StudentManagement: React.FC = () => {
+interface StudentManagementProps {
+  pendingRFID?: string | null;
+  onStudentRegistered?: () => void;
+}
+
+const StudentManagement: React.FC<StudentManagementProps> = ({
+  pendingRFID,
+  onStudentRegistered
+}) => {
   const [students, setStudents] = useState<Record<string, Student>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
@@ -46,6 +53,22 @@ const StudentManagement: React.FC = () => {
     loadStudents();
   }, []);
 
+  // Auto-open registration dialog if there's a pending RFID
+  useEffect(() => {
+    if (pendingRFID) {
+      console.log('Opening registration for pending RFID:', pendingRFID);
+      setFormData({
+        name: '',
+        rfid: pendingRFID,
+        email: '',
+        course: '',
+        year: '',
+        section: ''
+      });
+      setIsAddDialogOpen(true);
+    }
+  }, [pendingRFID]);
+
   const filteredStudents = Object.entries(students).filter(([id, student]) =>
     id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,20 +94,55 @@ const StudentManagement: React.FC = () => {
     setIsAddDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Validate required fields
+    if (!formData.name || !formData.rfid || !formData.email || !formData.course || !formData.year || !formData.section) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate RFID format (8 hex characters)
+    if (!/^[A-Fa-f0-9]{8}$/.test(formData.rfid)) {
+      toast({
+        title: "Error",
+        description: "RFID must be exactly 8 hexadecimal characters",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check for duplicate RFID
+    const existingRFID = Object.entries(students).find(([id, student]) => 
+      student.rfid.toLowerCase() === formData.rfid.toLowerCase() && id !== selectedStudent
+    );
+
+    if (existingRFID) {
+      toast({
+        title: "Error",
+        description: `RFID ${formData.rfid.toUpperCase()} is already assigned to ${existingRFID[1].name}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (formData.id && selectedStudent) {
       // Edit existing student
       setStudents(prev => ({
         ...prev,
         [selectedStudent]: {
           name: formData.name,
-          rfid: formData.rfid,
+          rfid: formData.rfid.toUpperCase(),
           email: formData.email,
           course: formData.course,
           year: formData.year,
           section: formData.section
         }
       }));
+      
       toast({
         title: "Success",
         description: "Student information updated successfully"
@@ -107,7 +165,7 @@ const StudentManagement: React.FC = () => {
         ...prev,
         [newId]: {
           name: formData.name,
-          rfid: formData.rfid,
+          rfid: formData.rfid.toUpperCase(),
           email: formData.email,
           course: formData.course,
           year: formData.year,
@@ -115,12 +173,30 @@ const StudentManagement: React.FC = () => {
         }
       }));
       
-      toast({
-        title: "Success",
-        description: `Student added successfully with ID: ${newId}`
-      });
+      // Success notification for RFID registration
+      if (pendingRFID) {
+        toast({
+          title: "Registration Success",
+          description: `Student ${formData.name} has been registered with RFID ${formData.rfid.toUpperCase().replace(/(.{2})/g, '$1 ').trim()}`,
+          duration: 5000
+        });
+        
+        // Notify parent component
+        if (onStudentRegistered) {
+          onStudentRegistered();
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: `Student added successfully with ID: ${newId}`
+        });
+      }
+      
       setIsAddDialogOpen(false);
     }
+    
+    // Clear form
+    resetForm();
   };
 
   const handleDelete = (studentId: string) => {
@@ -149,6 +225,10 @@ const StudentManagement: React.FC = () => {
     setSelectedStudent(null);
   };
 
+  const formatRFIDDisplay = (rfid: string) => {
+    return rfid.toUpperCase().replace(/(.{2})/g, '$1 ').trim();
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Search and Add Button */}
@@ -158,6 +238,11 @@ const StudentManagement: React.FC = () => {
             <span className="flex items-center">
               <Settings className="w-5 h-5 mr-2" />
               Student Management
+              {pendingRFID && (
+                <Badge className="ml-2 bg-yellow-500 text-white">
+                  RFID Registration Mode
+                </Badge>
+              )}
             </span>
             <Button 
               onClick={handleAdd}
@@ -166,7 +251,12 @@ const StudentManagement: React.FC = () => {
               Add Student
             </Button>
           </CardTitle>
-          <CardDescription>Manage student information and RFID data</CardDescription>
+          <CardDescription>
+            {pendingRFID 
+              ? `Ready to register RFID: ${formatRFIDDisplay(pendingRFID)}`
+              : "Manage student information and RFID data"
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2">
@@ -222,7 +312,7 @@ const StudentManagement: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-dark">RFID:</p>
-                <Badge variant="outline" className="font-mono">{student.rfid}</Badge>
+                <Badge variant="outline" className="font-mono">{formatRFIDDisplay(student.rfid)}</Badge>
               </div>
               <div>
                 <p className="text-sm text-gray-dark">Email:</p>
@@ -240,6 +330,106 @@ const StudentManagement: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Enhanced Add Student Dialog with RFID pre-fill */}
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        setIsAddDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-dark-blue">
+              {pendingRFID ? 'Register New Student with RFID' : 'Add New Student'}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingRFID 
+                ? `Registering RFID: ${formatRFIDDisplay(pendingRFID)}`
+                : "Register a new student in the system"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="add-name">Full Name *</Label>
+              <Input
+                id="add-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter full name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-rfid">RFID Number *</Label>
+              <Input
+                id="add-rfid"
+                value={formData.rfid}
+                onChange={(e) => setFormData({ ...formData, rfid: e.target.value.toUpperCase() })}
+                placeholder="8 hex characters (e.g., BD311B2A)"
+                maxLength={8}
+                readOnly={!!pendingRFID}
+                className={pendingRFID ? "bg-gray-100" : ""}
+              />
+              {pendingRFID && (
+                <p className="text-sm text-gray-600">RFID pre-filled from detected card</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-email">Email *</Label>
+              <Input
+                id="add-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-course">Course *</Label>
+              <Input
+                id="add-course"
+                value={formData.course}
+                onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                placeholder="Enter course"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="add-year">Year *</Label>
+                <Input
+                  id="add-year"
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                  placeholder="1st Year"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-section">Section *</Label>
+                <Input
+                  id="add-section"
+                  value={formData.section}
+                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                  placeholder="A"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsAddDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                className="flex-1 bg-dark-blue hover:bg-light-blue text-white"
+              >
+                {pendingRFID ? 'Register Student' : 'Add Student'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Student Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
@@ -316,93 +506,6 @@ const StudentManagement: React.FC = () => {
                 className="flex-1 bg-dark-blue hover:bg-light-blue text-white"
               >
                 Save Changes
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Student Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-        setIsAddDialogOpen(open);
-        if (!open) resetForm();
-      }}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-dark-blue">Add New Student</DialogTitle>
-            <DialogDescription>Register a new student in the system</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="add-name">Full Name</Label>
-              <Input
-                id="add-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter full name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-rfid">RFID Number</Label>
-              <Input
-                id="add-rfid"
-                value={formData.rfid}
-                onChange={(e) => setFormData({ ...formData, rfid: e.target.value })}
-                placeholder="Enter RFID number"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-email">Email</Label>
-              <Input
-                id="add-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email address"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-course">Course</Label>
-              <Input
-                id="add-course"
-                value={formData.course}
-                onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                placeholder="Enter course"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label htmlFor="add-year">Year</Label>
-                <Input
-                  id="add-year"
-                  value={formData.year}
-                  onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  placeholder="1st Year"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="add-section">Section</Label>
-                <Input
-                  id="add-section"
-                  value={formData.section}
-                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                  placeholder="A"
-                />
-              </div>
-            </div>
-            <div className="flex space-x-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                className="flex-1 bg-dark-blue hover:bg-light-blue text-white"
-              >
-                Add Student
               </Button>
             </div>
           </div>

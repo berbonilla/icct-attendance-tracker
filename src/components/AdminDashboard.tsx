@@ -7,12 +7,35 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Users, Calendar, Clock, TrendingUp } from 'lucide-react';
 import { AttendanceData } from '@/types/attendance';
 import { DummyDataStructure, DummyDataStudent } from '@/types/dummyData';
+import StudentManagement from './StudentManagement';
+import { toast } from '@/hooks/use-toast';
 
-const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+  pendingRFID?: string | null;
+  onRFIDRegistered?: () => void;
+}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+  pendingRFID, 
+  onRFIDRegistered 
+}) => {
   const { user, logout } = useAuth();
   const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
   const [students, setStudents] = useState<Record<string, DummyDataStudent>>({});
   const [filter, setFilter] = useState<'week' | 'month' | 'term'>('week');
+  const [activeTab, setActiveTab] = useState('attendance');
+
+  useEffect(() => {
+    // If there's a pending RFID, automatically switch to student management
+    if (pendingRFID) {
+      setActiveTab('students');
+      toast({
+        title: "RFID Registration",
+        description: `Ready to register RFID: ${pendingRFID.toUpperCase().replace(/(.{2})/g, '$1 ').trim()}`,
+        duration: 5000
+      });
+    }
+  }, [pendingRFID]);
 
   useEffect(() => {
     const loadAdminData = async () => {
@@ -183,7 +206,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Tabs for different admin functions */}
-        <Tabs defaultValue="attendance" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="attendance">Attendance Records</TabsTrigger>
             <TabsTrigger value="students">Student Management</TabsTrigger>
@@ -235,35 +258,10 @@ const AdminDashboard: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="students">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-dark-blue">Student Management</CardTitle>
-                <CardDescription>Add, edit, or remove student information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(students).map(([studentId, student]) => (
-                    <div key={studentId} className="flex justify-between items-center p-4 border border-gray-medium rounded-lg">
-                      <div>
-                        <h3 className="font-semibold">{student.name}</h3>
-                        <p className="text-sm text-gray-dark">
-                          {studentId} | {student.course} - {student.year}-{student.section}
-                        </p>
-                        {student.rfid && (
-                          <p className="text-xs text-gray-dark">RFID: {student.rfid}</p>
-                        )}
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm" className="text-red border-red hover:bg-red hover:text-white">
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <StudentManagement 
+              pendingRFID={pendingRFID}
+              onStudentRegistered={onRFIDRegistered}
+            />
           </TabsContent>
 
           <TabsContent value="settings">

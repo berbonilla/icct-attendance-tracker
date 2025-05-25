@@ -3,7 +3,7 @@
   "students": {
     "TA202200470": {
       "name": "Juan Dela Cruz",
-      "rfid": "1234567890",
+      "rfid": "BD311B2A",
       "email": "juan.delacruz@icct.edu.ph",
       "course": "Computer Science",
       "year": "3rd Year",
@@ -11,7 +11,7 @@
     },
     "TA202200471": {
       "name": "Maria Santos",
-      "rfid": "1234567891",
+      "rfid": "A7F2C841",
       "email": "maria.santos@icct.edu.ph",
       "course": "Information Technology",
       "year": "2nd Year",
@@ -19,7 +19,7 @@
     },
     "TA202200472": {
       "name": "Pedro Rodriguez",
-      "rfid": "1234567892",
+      "rfid": "C9E4D123",
       "email": "pedro.rodriguez@icct.edu.ph",
       "course": "Computer Engineering",
       "year": "4th Year",
@@ -27,7 +27,7 @@
     },
     "TA202200473": {
       "name": "Ana Garcia",
-      "rfid": "1234567893",
+      "rfid": "F8A1B6C5",
       "email": "ana.garcia@icct.edu.ph",
       "course": "Computer Science",
       "year": "1st Year",
@@ -36,16 +36,10 @@
   },
   "adminUsers": {
     "ICCTADMIN01": {
-      "password": "icct1234",
+      "password": "admin123",
       "name": "Mr. John Admin",
       "role": "Administrator",
       "email": "admin@icct.edu.ph"
-    },
-    "ICCTTEACHER01": {
-      "password": "teacher123",
-      "name": "Ms. Jane Teacher",
-      "role": "Teacher",
-      "email": "teacher@icct.edu.ph"
     }
   },
   "attendanceRecords": {
@@ -78,6 +72,7 @@
       "2024-05-24": { "status": "present", "timeIn": "07:30", "timeOut": "16:30" }
     }
   },
+  "rfidQueue": {},
   "absenteeAlerts": {
     "2024-05-21": ["TA202200471"],
     "2024-05-22": ["TA202200470", "TA202200473"],
