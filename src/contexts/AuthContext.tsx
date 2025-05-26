@@ -144,39 +144,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Mark as processed locally to avoid reprocessing
       setProcessedRFIDs(prev => new Set([...prev, earliestRFID]));
       
-      // Check if RFID is registered in students database
-      const isRegistered = databaseData.students && Object.values(databaseData.students).some(
-        student => student.rfid === earliestRFID
+      // Find student by RFID
+      const studentEntry = databaseData.students && Object.entries(databaseData.students).find(
+        ([, student]) => student.rfid === earliestRFID
       );
       
-      console.log('🔐 RFID Status:', isRegistered ? 'REGISTERED' : 'UNREGISTERED');
-      console.log('🔍 Checking RFID against students:', {
-        scannedRFID: earliestRFID,
-        studentRFIDs: Object.values(databaseData.students || {}).map(s => s.rfid),
-        isRegistered
-      });
-      
-      if (!isRegistered) {
+      if (studentEntry) {
+        const [studentId, studentData] = studentEntry;
+        console.log('✅ RFID is registered to student:', studentId, studentData.name);
+        console.log('📋 Processing attendance for registered student...');
+        
+        // Process attendance for registered student
+        processAttendance(studentId, data.timestamp).then(() => {
+          console.log('✅ Attendance processing completed for:', studentData.name);
+        }).catch(error => {
+          console.error('❌ Failed to process attendance:', error);
+        });
+      } else {
         console.log('🚨 Unregistered RFID detected - Triggering admin authentication');
+        console.log('🔍 Checking RFID against students:', {
+          scannedRFID: earliestRFID,
+          studentRFIDs: Object.values(databaseData.students || {}).map(s => s.rfid),
+          isRegistered: false
+        });
+        
         setPendingRFID(earliestRFID);
         setAutoAdminMode(true);
-      } else {
-        console.log('✅ RFID is registered - Processing attendance');
-        
-        // Find the student ID for this RFID
-        const studentEntry = Object.entries(databaseData.students || {}).find(
-          ([, student]) => student.rfid === earliestRFID
-        );
-        
-        if (studentEntry) {
-          const [studentId] = studentEntry;
-          console.log('📋 Processing attendance for student ID:', studentId);
-          
-          // Process attendance asynchronously
-          processAttendance(studentId, data.timestamp).catch(error => {
-            console.error('❌ Failed to process attendance:', error);
-          });
-        }
       }
     }
   }, [databaseData, processedRFIDs]);

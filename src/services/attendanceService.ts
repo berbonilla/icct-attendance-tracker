@@ -65,6 +65,12 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     if (!scheduleData) {
       console.log('📋 No schedule found for student:', studentId);
+      // Mark RFID as processed even if no schedule
+      const student = await getStudentByRFID(studentId);
+      if (student) {
+        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
+        await set(processedRef, true);
+      }
       return;
     }
 
@@ -84,6 +90,12 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     if (!daySchedule) {
       console.log('📅 No classes scheduled for', fullDayName);
+      // Mark RFID as processed even if no classes today
+      const student = await getStudentByRFID(studentId);
+      if (student) {
+        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
+        await set(processedRef, true);
+      }
       return;
     }
 
@@ -96,7 +108,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     console.log('📖 Existing attendance records for today:', existingAttendance);
 
-    // Find the current or next class
+    // Find the current or next class based on scan time
     let attendanceStatus: 'present' | 'late' | 'absent' = 'absent';
     let currentSubject = '';
     let matchedTimeSlot = '';
@@ -115,14 +127,14 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     for (const slot of slots) {
       if (!slot.subjectId) continue;
 
-      // Parse time slot (supporting flexible formats like "08:15-10:30")
+      // Parse time slot
       const [startTime, endTime] = slot.timeSlot.split('-');
       
-      // Create Date objects for comparison with flexible time support
+      // Create Date objects for comparison
       const classStart = createDateWithTime(scanDate, startTime);
       const classEnd = createDateWithTime(scanDate, endTime);
 
-      // Calculate time boundaries
+      // Calculate time boundaries for attendance rules
       const late15Min = new Date(classStart.getTime() + 15 * 60 * 1000);
       const late30Min = new Date(classStart.getTime() + 30 * 60 * 1000);
 
@@ -134,7 +146,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
         scanTime: scanDate.toTimeString().slice(0, 5)
       });
 
-      // Check if scan time falls within this class period (including 30min grace)
+      // Check if scan time falls within class period (with extended window for attendance)
       if (scanDate >= classStart && scanDate <= late30Min) {
         // Get subject info
         const subject = scheduleData.subjects[slot.subjectId];
@@ -142,23 +154,29 @@ export const processAttendance = async (studentId: string, scannedTime: number):
         matchedTimeSlot = slot.timeSlot;
         matchedSubjectId = slot.subjectId;
 
-        // Determine attendance status
-        if (scanDate <= classStart) {
+        // Determine attendance status based on timing rules
+        if (scanDate <= late15Min) {
           attendanceStatus = 'present';
-          console.log('✅ Student is PRESENT (on time)');
-        } else if (scanDate <= late15Min) {
-          attendanceStatus = 'present';
-          console.log('✅ Student is PRESENT (within 15 min)');
+          console.log('✅ Student is PRESENT (scanned within 15 minutes of class start)');
         } else if (scanDate <= late30Min) {
           attendanceStatus = 'late';
-          console.log('⚠️ Student is LATE (15-30 min after start)');
+          console.log('⚠️ Student is LATE (scanned 15-30 minutes after class start)');
+        } else {
+          attendanceStatus = 'absent';
+          console.log('❌ Student is ABSENT (scanned more than 30 minutes after class start)');
         }
         break;
       }
     }
 
     if (!matchedTimeSlot || !matchedSubjectId) {
-      console.log('❌ No matching class found for scan time');
+      console.log('❌ No matching class found for scan time - student may be scanning outside class hours');
+      // Mark RFID as processed but don't record attendance
+      const student = await getStudentByRFID(studentId);
+      if (student) {
+        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
+        await set(processedRef, true);
+      }
       return;
     }
 
@@ -172,7 +190,6 @@ export const processAttendance = async (studentId: string, scannedTime: number):
         existingRecord: existingAttendance[classKey]
       });
       
-      // Don't overwrite existing attendance for this class
       // Mark the scanned RFID as processed but don't update attendance
       const student = await getStudentByRFID(studentId);
       if (student) {
