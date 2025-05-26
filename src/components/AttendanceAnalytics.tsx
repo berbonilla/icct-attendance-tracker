@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Users, Calendar, Clock, AlertTriangle, Brain, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Calendar, Clock, AlertTriangle, Brain, Zap, Sparkles } from 'lucide-react';
 import { AttendanceData } from '@/types/attendance';
 import { DummyDataStudent } from '@/types/dummyData';
+import { aiAnalyticsService } from '@/services/aiAnalyticsService';
+import AIKeyConfig from './AIKeyConfig';
 
 interface AttendanceAnalyticsProps {
   attendanceData: AttendanceData;
@@ -26,6 +27,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
   const [view, setView] = useState<'basic' | 'advanced'>('basic');
   const [insights, setInsights] = useState<AnalyticsInsight[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showKeyConfig, setShowKeyConfig] = useState(!aiAnalyticsService.hasApiKey());
 
   // Calculate comprehensive analytics
   const calculateAnalytics = () => {
@@ -113,65 +115,36 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
   };
 
   // AI-powered insights generation
-  const generateInsights = () => {
+  const generateInsights = async () => {
     setIsAnalyzing(true);
     
-    setTimeout(() => {
-      const analytics = calculateAnalytics();
-      const newInsights: AnalyticsInsight[] = [];
-
-      // Attendance trend analysis
-      if (analytics.summary.averageAttendance < 80) {
-        newInsights.push({
-          type: 'trend',
-          title: 'Declining Attendance Trend',
-          description: `Overall attendance is below optimal at ${analytics.summary.averageAttendance}%. Consider implementing engagement strategies.`,
-          severity: 'high',
-          action: 'Review course schedules and student feedback'
-        });
+    try {
+      const analyticsData = calculateAnalytics();
+      
+      if (aiAnalyticsService.hasApiKey()) {
+        console.log('🤖 Generating AI insights...');
+        const aiInsights = await aiAnalyticsService.generateInsights(analyticsData);
+        setInsights(aiInsights);
+      } else {
+        setShowKeyConfig(true);
+        setInsights([]);
       }
-
-      // At-risk student identification
-      if (analytics.summary.atRiskStudents > 0) {
-        newInsights.push({
-          type: 'risk',
-          title: 'Students at Risk',
-          description: `${analytics.summary.atRiskStudents} students have attendance below 75%. Early intervention recommended.`,
-          severity: 'high',
-          action: 'Schedule individual meetings with at-risk students'
-        });
-      }
-
-      // Course performance analysis
-      const poorPerformingCourses = analytics.courseStats.filter(course => course.averageAttendance < 75);
-      if (poorPerformingCourses.length > 0) {
-        newInsights.push({
-          type: 'recommendation',
-          title: 'Course Attendance Issues',
-          description: `${poorPerformingCourses.length} course(s) showing poor attendance. Consider reviewing curriculum or teaching methods.`,
-          severity: 'medium',
-          action: 'Analyze course-specific factors affecting attendance'
-        });
-      }
-
-      // Excellence recognition
-      if (analytics.summary.excellentStudents > 0) {
-        newInsights.push({
-          type: 'achievement',
-          title: 'Excellent Attendance',
-          description: `${analytics.summary.excellentStudents} students maintain 95%+ attendance. Consider recognition programs.`,
-          severity: 'low',
-          action: 'Implement student recognition initiatives'
-        });
-      }
-
-      setInsights(newInsights);
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      setInsights([{
+        type: 'recommendation',
+        title: 'AI Analysis Unavailable',
+        description: 'Unable to generate AI insights. Please check your API key configuration.',
+        severity: 'medium',
+        action: 'Verify your OpenAI API key and try again'
+      }]);
+    } finally {
       setIsAnalyzing(false);
-    }, 2000);
+    }
   };
 
   useEffect(() => {
-    if (Object.keys(attendanceData).length > 0) {
+    if (Object.keys(attendanceData).length > 0 && aiAnalyticsService.hasApiKey()) {
       generateInsights();
     }
   }, [attendanceData]);
@@ -213,8 +186,8 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
       {/* View Toggle */}
       <div className="flex justify-between items-center">
         <h3 className="text-2xl font-bold text-dark-blue flex items-center">
-          <Brain className="w-6 h-6 mr-2" />
-          AI-Powered Analytics
+          <Sparkles className="w-6 h-6 mr-2 text-yellow-500" />
+          Real AI-Powered Analytics
         </h3>
         <div className="flex space-x-2">
           <Button
@@ -234,24 +207,47 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
         </div>
       </div>
 
+      {/* AI Key Configuration */}
+      {showKeyConfig && (
+        <AIKeyConfig onKeyConfigured={() => {
+          setShowKeyConfig(false);
+          generateInsights();
+        }} />
+      )}
+
       {/* AI Insights Panel */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Zap className="w-5 h-5 mr-2 text-yellow-500" />
+            <Brain className="w-5 h-5 mr-2 text-blue-500" />
             AI Insights & Recommendations
             {isAnalyzing && (
               <Badge className="ml-2 bg-blue-500 text-white animate-pulse">
-                Analyzing...
+                AI Analyzing...
+              </Badge>
+            )}
+            {aiAnalyticsService.hasApiKey() && (
+              <Badge className="ml-2 bg-green-500 text-white">
+                Real AI
               </Badge>
             )}
           </CardTitle>
           <CardDescription>
-            Intelligent analysis of attendance patterns and recommendations
+            {aiAnalyticsService.hasApiKey() 
+              ? 'Powered by OpenAI GPT-4 for intelligent attendance pattern analysis'
+              : 'Configure OpenAI API key to enable real AI-powered insights'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {insights.length > 0 ? (
+          {!aiAnalyticsService.hasApiKey() ? (
+            <div className="text-center py-4">
+              <p className="text-gray-500 mb-2">AI analytics requires OpenAI API key configuration</p>
+              <Button onClick={() => setShowKeyConfig(true)} className="bg-blue-600 hover:bg-blue-700">
+                Configure AI Analytics
+              </Button>
+            </div>
+          ) : insights.length > 0 ? (
             <div className="space-y-3">
               {insights.map((insight, index) => (
                 <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -264,7 +260,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
                       <p className="text-gray-600 text-sm mt-1">{insight.description}</p>
                       {insight.action && (
                         <p className="text-blue-600 text-sm mt-2 font-medium">
-                          💡 Recommended Action: {insight.action}
+                          🤖 AI Recommendation: {insight.action}
                         </p>
                       )}
                     </div>
@@ -277,6 +273,16 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
                   </div>
                 </div>
               ))}
+              <div className="flex justify-end mt-4">
+                <Button 
+                  onClick={generateInsights} 
+                  disabled={isAnalyzing}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isAnalyzing ? 'Analyzing...' : 'Refresh AI Analysis'}
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="text-center py-4">
