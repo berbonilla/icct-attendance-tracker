@@ -11,6 +11,7 @@ interface AuthContextType {
   setPendingRFID: (rfid: string | null) => void;
   autoAdminMode: boolean;
   setAutoAdminMode: (mode: boolean) => void;
+  systemReset: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,26 +32,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [autoAdminMode, setAutoAdminMode] = useState(false);
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
 
+  // System reset function to clear all states
+  const systemReset = () => {
+    console.log('🔄 System Reset: Clearing all states and cache');
+    
+    // Clear localStorage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Reset all states
+    setUser(null);
+    setUserType(null);
+    setPendingRFID(null);
+    setAutoAdminMode(false);
+    setProcessedRFIDs(new Set());
+    setIsLoading(false);
+    
+    console.log('✅ System Reset: All states cleared');
+  };
+
+  // Initialize system on mount - clear cache and reset
+  useEffect(() => {
+    console.log('🚀 Application Starting: Performing initial system reset');
+    systemReset();
+    
+    // Log system initialization
+    console.log('📊 System Status Check:');
+    console.log('- Cache cleared:', !localStorage.getItem('icct_user'));
+    console.log('- States reset:', !user && !userType && !pendingRFID && !autoAdminMode);
+    console.log('- Ready for fresh start');
+  }, []);
+
   // Monitor ScannedIDs for automatic RFID detection every 5 seconds
   useEffect(() => {
     const checkScannedRFIDs = async () => {
       try {
-        const dummyData = await import('../data/dummyData.json');
+        console.log('🔍 RFID Scanner: Checking for new scans...');
+        const dummyData = await import('../data/emptyDatabase.json');
         
-        console.log('Checking ScannedIDs...', dummyData.ScannedIDs);
+        console.log('📋 Database State:', {
+          scannedIDs: Object.keys(dummyData.ScannedIDs || {}).length,
+          students: Object.keys(dummyData.students || {}).length,
+          adminUsers: Object.keys(dummyData.adminUsers || {}).length
+        });
         
         // Only proceed if ScannedIDs exists and has unprocessed content
         if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
+          console.log('🆔 Found ScannedIDs:', dummyData.ScannedIDs);
+          
           // Find the earliest unprocessed RFID that hasn't been processed locally
           const unprocessedRFIDs = Object.entries(dummyData.ScannedIDs)
             .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
             .sort(([, a], [, b]) => a.timestamp - b.timestamp);
 
-          console.log('Unprocessed RFIDs found:', unprocessedRFIDs);
+          console.log('🔍 Unprocessed RFIDs found:', unprocessedRFIDs.length);
 
           if (unprocessedRFIDs.length > 0) {
             const [earliestRFID, data] = unprocessedRFIDs[0];
-            console.log('Processing earliest unprocessed RFID:', earliestRFID, 'timestamp:', data.timestamp);
+            console.log('⚡ Processing RFID:', earliestRFID, 'at timestamp:', data.timestamp);
             
             // Mark as processed locally to avoid reprocessing
             setProcessedRFIDs(prev => new Set([...prev, earliestRFID]));
@@ -60,64 +99,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               student => student.rfid === earliestRFID
             );
             
-            console.log('RFID registration status:', isRegistered ? 'registered' : 'unregistered');
+            console.log('🔐 RFID Status:', isRegistered ? 'REGISTERED' : 'UNREGISTERED');
             
             if (!isRegistered) {
-              console.log('Unregistered RFID detected, triggering admin mode');
+              console.log('🚨 Unregistered RFID detected - Triggering admin authentication');
               setPendingRFID(earliestRFID);
               setAutoAdminMode(true);
             } else {
-              console.log('RFID is registered, processing attendance for:', earliestRFID);
+              console.log('✅ RFID is registered - Processing attendance');
               // TODO: Add attendance processing logic here
             }
           }
         } else {
-          console.log('No ScannedIDs found or all processed');
+          console.log('💤 No ScannedIDs to process');
           // Reset admin mode if no pending RFIDs and no scanned IDs
           if (autoAdminMode && !pendingRFID) {
-            console.log('Resetting admin mode - no pending RFIDs');
+            console.log('🔄 Resetting admin mode - no pending operations');
             setAutoAdminMode(false);
           }
         }
       } catch (error) {
-        console.error('Error checking scanned RFIDs:', error);
+        console.error('❌ Error checking scanned RFIDs:', error);
       }
     };
 
-    // Initial check
-    checkScannedRFIDs();
+    // Initial check after 1 second delay
+    const initialTimeout = setTimeout(checkScannedRFIDs, 1000);
     
     // Check for new RFIDs every 5 seconds
     const interval = setInterval(checkScannedRFIDs, 5000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [processedRFIDs, autoAdminMode, pendingRFID]);
 
   const loadUserData = async (id: string, password?: string) => {
     setIsLoading(true);
+    console.log('🔐 Authentication attempt for:', id);
     
     try {
-      const dummyData = await import('../data/dummyData.json');
+      const dummyData = await import('../data/emptyDatabase.json');
       
       if (id.startsWith('TA')) {
         const student = dummyData.students[id as keyof typeof dummyData.students];
         if (student) {
+          console.log('✅ Student authentication successful');
           setUser({ id, ...student });
           setUserType('student');
           return true;
+        } else {
+          console.log('❌ Student not found');
         }
       } else {
         const admin = dummyData.adminUsers[id as keyof typeof dummyData.adminUsers];
         if (admin && password === admin.password) {
+          console.log('✅ Admin authentication successful');
           setUser({ id, ...admin });
           setUserType('admin');
           return true;
+        } else {
+          console.log('❌ Admin authentication failed');
         }
       }
       
       return false;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -129,36 +178,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    setUser(null);
-    setUserType(null);
-    setPendingRFID(null);
-    setAutoAdminMode(false);
-    setProcessedRFIDs(new Set());
+    console.log('🚪 User logout - performing system reset');
+    systemReset();
   };
-
-  // Clear session storage on logout and populate on login
-  useEffect(() => {
-    if (user && userType) {
-      localStorage.setItem('icct_user', JSON.stringify({ user, userType }));
-    } else {
-      localStorage.removeItem('icct_user');
-    }
-  }, [user, userType]);
-
-  // Load session on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('icct_user');
-    if (storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setUser(userData.user);
-        setUserType(userData.userType);
-      } catch (error) {
-        console.error('Error loading stored user:', error);
-        localStorage.removeItem('icct_user');
-      }
-    }
-  }, []);
 
   const value = {
     user,
@@ -169,7 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pendingRFID,
     setPendingRFID,
     autoAdminMode,
-    setAutoAdminMode
+    setAutoAdminMode,
+    systemReset
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
