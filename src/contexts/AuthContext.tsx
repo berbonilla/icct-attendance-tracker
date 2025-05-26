@@ -227,8 +227,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    console.log('🚪 User logout - performing system reset');
+    console.log('🚪 Admin logout - performing system reset and returning to landing page');
+    
+    // Perform system reset to clear all states
     systemReset();
+    
+    // Force a re-render by ensuring user state is null
+    setUser(null);
+    setUserType(null);
+    
+    console.log('✅ Logout complete - user should see landing page');
   };
 
   const value = {
