@@ -29,6 +29,41 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showKeyConfig, setShowKeyConfig] = useState(!aiAnalyticsService.hasApiKey());
 
+  // Helper function to check if a record is a ClassAttendanceRecord
+  const isClassAttendanceRecord = (record: any): record is ClassAttendanceRecord => {
+    return record && typeof record === 'object' && 
+           'status' in record && 'subject' in record && 
+           'timeSlot' in record && 'recordedAt' in record;
+  };
+
+  // Helper function to check if a record is a DayAttendanceRecord
+  const isDayAttendanceRecord = (record: any): record is DayAttendanceRecord => {
+    return record && typeof record === 'object' && 
+           !('status' in record) && !('timeSlot' in record);
+  };
+
+  // Helper function to extract all class records from any attendance record
+  const extractClassRecords = (dayRecord: any): ClassAttendanceRecord[] => {
+    if (isClassAttendanceRecord(dayRecord)) {
+      // Single class record (old format or single class day)
+      return [dayRecord];
+    } else if (isDayAttendanceRecord(dayRecord)) {
+      // Multiple classes in a day (new format)
+      return Object.values(dayRecord).filter(isClassAttendanceRecord);
+    } else if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
+      // Old format: convert to ClassAttendanceRecord for processing
+      return [{
+        status: dayRecord.status,
+        timeIn: dayRecord.timeIn,
+        timeOut: dayRecord.timeOut,
+        subject: dayRecord.subject || 'Unknown',
+        timeSlot: '00:00-00:00',
+        recordedAt: Date.now()
+      }];
+    }
+    return [];
+  };
+
   // Calculate comprehensive analytics
   const calculateAnalytics = () => {
     const studentStats = Object.entries(attendanceData).map(([studentId, records]) => {
@@ -39,27 +74,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
       
       // Extract all class records from the new structure
       Object.values(records).forEach(dayRecord => {
-        if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
-          if ('timeSlot' in dayRecord) {
-            // Single class record (old format or single class day)
-            allClassRecords.push(dayRecord as ClassAttendanceRecord);
-          } else {
-            // Old format: convert to ClassAttendanceRecord for processing
-            allClassRecords.push({
-              status: dayRecord.status,
-              timeIn: dayRecord.timeIn,
-              timeOut: dayRecord.timeOut,
-              subject: dayRecord.subject || 'Unknown',
-              timeSlot: '00:00-00:00',
-              recordedAt: Date.now()
-            } as ClassAttendanceRecord);
-          }
-        } else if (typeof dayRecord === 'object' && dayRecord !== null) {
-          // Multiple classes in a day (new format)
-          Object.values(dayRecord as DayAttendanceRecord).forEach(classRecord => {
-            allClassRecords.push(classRecord);
-          });
-        }
+        allClassRecords.push(...extractClassRecords(dayRecord));
       });
 
       const total = allClassRecords.length;
@@ -111,20 +126,10 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
     const allClassRecords: Array<{ date: string; status: string }> = [];
     Object.values(attendanceData).forEach(records => {
       Object.entries(records).forEach(([date, dayRecord]) => {
-        if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
-          if ('timeSlot' in dayRecord) {
-            // Single class record
-            allClassRecords.push({ date, status: (dayRecord as ClassAttendanceRecord).status });
-          } else {
-            // Old format
-            allClassRecords.push({ date, status: dayRecord.status });
-          }
-        } else if (typeof dayRecord === 'object' && dayRecord !== null) {
-          // Multiple classes in a day
-          Object.values(dayRecord as DayAttendanceRecord).forEach(classRecord => {
-            allClassRecords.push({ date, status: classRecord.status });
-          });
-        }
+        const classRecords = extractClassRecords(dayRecord);
+        classRecords.forEach(classRecord => {
+          allClassRecords.push({ date, status: classRecord.status });
+        });
       });
     });
 
@@ -136,7 +141,10 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
         acc[week] = { week, present: 0, absent: 0, late: 0 };
       }
       
-      acc[week][record.status as keyof typeof acc[typeof week]]++;
+      if (record.status === 'present') acc[week].present++;
+      else if (record.status === 'absent') acc[week].absent++;
+      else if (record.status === 'late') acc[week].late++;
+      
       return acc;
     }, {} as Record<string, any>);
 

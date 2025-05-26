@@ -30,6 +30,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState('attendance');
   const [isConnected, setIsConnected] = useState(false);
 
+  // Helper function to check if a record is a ClassAttendanceRecord
+  const isClassAttendanceRecord = (record: any): record is ClassAttendanceRecord => {
+    return record && typeof record === 'object' && 
+           'status' in record && 'subject' in record && 
+           'timeSlot' in record && 'recordedAt' in record;
+  };
+
+  // Helper function to check if a record is a DayAttendanceRecord
+  const isDayAttendanceRecord = (record: any): record is DayAttendanceRecord => {
+    return record && typeof record === 'object' && 
+           !('status' in record) && !('timeSlot' in record);
+  };
+
+  // Helper function to extract all class records from any attendance record
+  const extractClassRecords = (dayRecord: any): ClassAttendanceRecord[] => {
+    if (isClassAttendanceRecord(dayRecord)) {
+      // Single class record (old format or single class day)
+      return [dayRecord];
+    } else if (isDayAttendanceRecord(dayRecord)) {
+      // Multiple classes in a day (new format)
+      return Object.values(dayRecord).filter(isClassAttendanceRecord);
+    } else if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
+      // Old format: convert to ClassAttendanceRecord for processing
+      return [{
+        status: dayRecord.status,
+        timeIn: dayRecord.timeIn,
+        timeOut: dayRecord.timeOut,
+        subject: dayRecord.subject || 'Unknown',
+        timeSlot: '00:00-00:00',
+        recordedAt: Date.now()
+      }];
+    }
+    return [];
+  };
+
   useEffect(() => {
     // If there's a pending RFID, automatically switch to student management
     if (pendingRFID) {
@@ -87,30 +122,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Extract all class attendance records from the new structure
     Object.values(attendanceData).forEach(studentRecords => {
       Object.values(studentRecords).forEach(dayRecord => {
-        if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
-          // Handle both old format (single record) and new format (day with multiple classes)
-          if ('timeSlot' in dayRecord) {
-            // New format: ClassAttendanceRecord
-            allRecords.push(dayRecord as ClassAttendanceRecord);
-          } else {
-            // Old format: convert to ClassAttendanceRecord format for processing
-            allRecords.push({
-              status: dayRecord.status,
-              timeIn: dayRecord.timeIn,
-              timeOut: dayRecord.timeOut,
-              subject: dayRecord.subject || 'Unknown',
-              timeSlot: '00:00-00:00',
-              recordedAt: Date.now()
-            } as ClassAttendanceRecord);
-          }
-        } else if (typeof dayRecord === 'object' && dayRecord !== null) {
-          // New format: DayAttendanceRecord with multiple classes
-          Object.values(dayRecord).forEach(classRecord => {
-            if (typeof classRecord === 'object' && 'status' in classRecord) {
-              allRecords.push(classRecord as ClassAttendanceRecord);
-            }
-          });
-        }
+        allRecords.push(...extractClassRecords(dayRecord));
       });
     });
 
@@ -313,10 +325,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
                               .slice(0, 7)
                               .map(([date, dayRecord]) => {
-                                // Handle both old and new format
-                                if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord && 'timeSlot' in dayRecord) {
-                                  // Single class record (old format or single class day)
-                                  const record = dayRecord as ClassAttendanceRecord;
+                                const classRecords = extractClassRecords(dayRecord);
+                                
+                                if (classRecords.length === 0) return null;
+                                
+                                if (classRecords.length === 1) {
+                                  // Single class record
+                                  const record = classRecords[0];
                                   return (
                                     <div key={date} className="bg-gray-light p-2 rounded text-center">
                                       <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
@@ -326,15 +341,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       )}
                                     </div>
                                   );
-                                } else if (typeof dayRecord === 'object' && dayRecord !== null) {
-                                  // Multiple classes in a day (new format)
-                                  const dayClasses = Object.values(dayRecord as DayAttendanceRecord);
-                                  if (dayClasses.length === 0) return null;
-                                  
-                                  // Show summary of the day
-                                  const presentCount = dayClasses.filter(c => c.status === 'present').length;
-                                  const lateCount = dayClasses.filter(c => c.status === 'late').length;
-                                  const absentCount = dayClasses.filter(c => c.status === 'absent').length;
+                                } else {
+                                  // Multiple classes in a day
+                                  const presentCount = classRecords.filter(c => c.status === 'present').length;
+                                  const lateCount = classRecords.filter(c => c.status === 'late').length;
+                                  const absentCount = classRecords.filter(c => c.status === 'absent').length;
                                   
                                   let overallStatus = 'present';
                                   if (absentCount > 0) overallStatus = 'absent';
@@ -345,12 +356,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
                                       {getStatusBadge(overallStatus)}
                                       <p className="text-xs text-gray-dark mt-1">
-                                        {dayClasses.length} classes
+                                        {classRecords.length} classes
                                       </p>
                                     </div>
                                   );
                                 }
-                                return null;
                               })}
                           </div>
                         </div>
