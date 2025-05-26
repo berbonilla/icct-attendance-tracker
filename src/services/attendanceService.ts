@@ -259,8 +259,10 @@ export const processAttendance = async (studentId: string, scannedTime: number):
       return;
     }
 
-    // Generate unique key for this class
+    // Generate unique key for this class using the ACTUAL time slot from schedule
     const classKey = generateClassKey(matchingClass.slot.timeSlot, matchingClass.slot.subjectId!);
+    
+    console.log('🔑 Generated class key:', classKey, 'for time slot:', matchingClass.slot.timeSlot);
 
     // Check if attendance for this specific class already exists
     if (existingAttendance[classKey]) {
@@ -281,7 +283,8 @@ export const processAttendance = async (studentId: string, scannedTime: number):
       classStartTime,
       classTimestamp,
       classDate: new Date(classTimestamp).toISOString(),
-      scanDate: new Date(scannedTime).toISOString()
+      scanDate: new Date(scannedTime).toISOString(),
+      actualTimeSlot: matchingClass.slot.timeSlot
     });
 
     // Create new attendance record for this specific class
@@ -289,7 +292,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
       status: matchingClass.status,
       timeIn: classStartTime, // Use class start time, not scan time
       subject: matchingClass.subject,
-      timeSlot: matchingClass.slot.timeSlot,
+      timeSlot: matchingClass.slot.timeSlot, // Use the ACTUAL class time slot like "07:00-08:00"
       recordedAt: classTimestamp, // Use class timestamp, not scan timestamp
       classDate: dateKey,
       actualScanTime: currentTime // Keep track of when they actually scanned
@@ -304,6 +307,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     console.log('📝 Creating attendance record:', {
       classKey,
       record: classAttendanceRecord,
+      timeSlotUsed: matchingClass.slot.timeSlot,
       fullDayAttendance: updatedDayAttendance
     });
 
@@ -312,6 +316,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     console.log('✅ Attendance record saved successfully for student:', studentId);
     console.log('📊 Final attendance status:', matchingClass.status.toUpperCase());
+    console.log('🕐 Time slot recorded:', matchingClass.slot.timeSlot);
 
     // Check for absence alerts after recording attendance
     if (matchingClass.status === 'absent') {
@@ -344,7 +349,9 @@ const recordGeneralAttendance = async (studentId: string, scanDate: Date, curren
       timeIn: currentTime,
       subject: 'General Check-in',
       timeSlot: currentTime,
-      recordedAt: scannedTime
+      recordedAt: scannedTime,
+      classDate: dateKey,
+      actualScanTime: currentTime
     };
 
     const updatedDayAttendance = {
