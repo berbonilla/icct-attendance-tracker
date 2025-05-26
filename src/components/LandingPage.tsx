@@ -83,7 +83,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-800 to-blue-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#2B5AA0] to-[#1E3A72] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -104,32 +104,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
 
         {/* Access Card */}
-        <Card className="shadow-2xl border-0 bg-white">
+        <Card className="shadow-2xl border-0 bg-white rounded-lg">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl text-blue-800 bg-blue-100 py-2 px-4 rounded-lg inline-block mx-auto">
+            <CardTitle className="text-xl text-white bg-[#4A90E2] py-2 px-6 rounded-md inline-block mx-auto font-semibold">
               Access System
             </CardTitle>
-            <CardDescription className="text-blue-600 font-medium mt-3">
+            <CardDescription className="text-[#4A90E2] font-medium mt-3 text-sm">
               Enter your Student ID (TA202200XXX) or Admin ID
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 px-8 pb-8">
             {!autoAdminMode && (
               <form onSubmit={handleIdSubmit} className="space-y-6">
                 <div className="space-y-3">
-                  <Label htmlFor="id" className="text-gray-700 font-medium">ID Number</Label>
+                  <Label htmlFor="id" className="text-gray-800 font-medium text-sm">ID Number</Label>
                   <Input
                     id="id"
                     type="text"
                     placeholder="Enter Student ID or Admin ID"
                     value={idInput}
                     onChange={(e) => setIdInput(e.target.value)}
-                    className="h-12 text-center border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-12 border-gray-300 rounded-md focus:border-[#4A90E2] focus:ring-[#4A90E2] text-gray-700"
                   />
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full h-12 bg-blue-800 hover:bg-blue-900 text-white font-medium text-lg"
+                  className="w-full h-12 bg-[#1E3A72] hover:bg-[#2B5AA0] text-white font-medium text-sm rounded-md"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -153,7 +153,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 </div>
                 <Button 
                   onClick={() => setShowPasswordDialog(true)}
-                  className="w-full h-12 bg-blue-800 hover:bg-blue-900 text-white font-medium text-lg"
+                  className="w-full h-12 bg-[#1E3A72] hover:bg-[#2B5AA0] text-white font-medium text-sm rounded-md"
                 >
                   Administrator Login
                 </Button>
@@ -167,8 +167,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle className="text-blue-800">Administrator Authentication</DialogTitle>
-            <DialogDescription className="text-blue-600">
+            <DialogTitle className="text-[#1E3A72]">Administrator Authentication</DialogTitle>
+            <DialogDescription className="text-[#4A90E2]">
               {pendingRFID 
                 ? `Please authenticate to register RFID: ${pendingRFID}`
                 : "Enter your administrator credentials"
@@ -183,7 +183,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 value={adminId}
                 onChange={(e) => setAdminId(e.target.value)}
                 placeholder="Enter administrator ID"
-                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                className="border-gray-300 focus:border-[#4A90E2] focus:ring-[#4A90E2]"
               />
             </div>
             <div className="space-y-2">
@@ -194,7 +194,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 placeholder="Enter administrator password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                className="border-gray-300 focus:border-[#4A90E2] focus:ring-[#4A90E2]"
               />
             </div>
             <div className="flex gap-3 pt-4">
@@ -208,7 +208,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               </Button>
               <Button 
                 type="submit" 
-                className="flex-1 bg-blue-800 hover:bg-blue-900 text-white"
+                className="flex-1 bg-[#1E3A72] hover:bg-[#2B5AA0] text-white"
                 disabled={isLoading}
               >
                 {isLoading ? (
