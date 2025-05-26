@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
@@ -25,11 +25,68 @@ interface ScheduleInputProps {
   onClose: () => void;
   onSave: (schedule: Record<string, any>) => void;
   studentName: string;
+  existingSchedule?: Record<string, any>;
 }
 
-const ScheduleInput: React.FC<ScheduleInputProps> = ({ isOpen, onClose, onSave, studentName }) => {
+const ScheduleInput: React.FC<ScheduleInputProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  studentName, 
+  existingSchedule 
+}) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [schedule, setSchedule] = useState<Record<string, ScheduleSlot[]>>({});
+
+  // Load existing schedule data when dialog opens
+  useEffect(() => {
+    if (isOpen && existingSchedule) {
+      console.log('Loading existing schedule:', existingSchedule);
+      
+      // Load existing subjects
+      if (existingSchedule.subjects) {
+        const loadedSubjects: Subject[] = Object.entries(existingSchedule.subjects).map(([id, subject]: [string, any]) => ({
+          id,
+          name: subject.name,
+          code: subject.code,
+          color: subject.color
+        }));
+        setSubjects(loadedSubjects);
+      }
+
+      // Load existing schedule slots
+      const loadedSchedule: Record<string, ScheduleSlot[]> = {};
+      Object.entries(existingSchedule).forEach(([key, value]: [string, any]) => {
+        if (key !== 'subjects' && value && typeof value === 'object') {
+          const daySchedule: ScheduleSlot[] = [];
+          
+          // Handle indexed structure from Firebase
+          Object.entries(value).forEach(([index, slot]: [string, any]) => {
+            if (slot && slot.timeSlot) {
+              daySchedule.push({
+                id: `${key}-${slot.timeSlot}-${index}`,
+                timeSlot: slot.timeSlot,
+                subjectId: slot.subjectId
+              });
+            }
+          });
+          
+          if (daySchedule.length > 0) {
+            // Sort by time slot
+            daySchedule.sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
+            loadedSchedule[key] = daySchedule;
+          }
+        }
+      });
+      
+      setSchedule(loadedSchedule);
+      console.log('Loaded schedule data:', { subjects: loadedSubjects, schedule: loadedSchedule });
+    } else if (isOpen && !existingSchedule) {
+      // Reset for new schedule
+      setSubjects([]);
+      setSchedule({});
+    }
+  }, [isOpen, existingSchedule]);
 
   const handleSave = () => {
     if (subjects.length === 0) {
@@ -75,9 +132,11 @@ const ScheduleInput: React.FC<ScheduleInputProps> = ({ isOpen, onClose, onSave, 
     });
 
     onSave(firebaseSchedule);
+    
+    const actionText = existingSchedule ? 'updated' : 'saved';
     toast({
       title: "Schedule Saved",
-      description: `Schedule for ${studentName} has been saved successfully`,
+      description: `Schedule for ${studentName} has been ${actionText} successfully`,
       duration: 3000
     });
     onClose();
@@ -94,10 +153,13 @@ const ScheduleInput: React.FC<ScheduleInputProps> = ({ isOpen, onClose, onSave, 
         <DialogHeader>
           <DialogTitle className="text-dark-blue flex items-center">
             <Calendar className="w-5 h-5 mr-2" />
-            Set Schedule for {studentName}
+            {existingSchedule ? 'Edit' : 'Set'} Schedule for {studentName}
           </DialogTitle>
           <DialogDescription>
-            Add subjects first, then drag them to time slots to create the weekly schedule
+            {existingSchedule 
+              ? "Modify the existing schedule by updating subjects and time slots"
+              : "Add subjects first, then drag them to time slots to create the weekly schedule"
+            }
           </DialogDescription>
         </DialogHeader>
         
@@ -138,7 +200,7 @@ const ScheduleInput: React.FC<ScheduleInputProps> = ({ isOpen, onClose, onSave, 
               onClick={handleSave}
               className="flex-1 bg-dark-blue hover:bg-light-blue text-white"
             >
-              Save Schedule
+              {existingSchedule ? 'Update' : 'Save'} Schedule
             </Button>
           </div>
         </div>

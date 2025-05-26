@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Edit, Trash, Search, Settings } from 'lucide-react';
+import { Edit, Trash, Search, Settings, Calendar } from 'lucide-react';
 import ScheduleInput from './ScheduleInput';
 import { database } from '@/config/firebase';
 import { ref, onValue, set, remove, off } from 'firebase/database';
@@ -54,6 +53,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [editingScheduleStudentId, setEditingScheduleStudentId] = useState<string | null>(null);
   const [newStudentId, setNewStudentId] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
   const [formData, setFormData] = useState<Student & { id?: string }>({
@@ -387,24 +387,38 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     }
   };
 
+  const handleEditSchedule = (studentId: string) => {
+    console.log('Opening schedule editor for student:', studentId);
+    setEditingScheduleStudentId(studentId);
+    setIsScheduleDialogOpen(true);
+  };
+
   const handleScheduleSave = async (schedule: Record<string, any>) => {
-    console.log('Processing schedule save for student:', newStudentId, schedule);
+    const targetStudentId = editingScheduleStudentId || newStudentId;
+    console.log('Processing schedule save for student:', targetStudentId, schedule);
     
-    const success = await saveScheduleToFirebase(newStudentId, schedule);
+    const success = await saveScheduleToFirebase(targetStudentId, schedule);
     
     if (success) {
-      if (onStudentRegistered) {
+      if (editingScheduleStudentId) {
+        // Editing existing schedule
+        toast({
+          title: "Success",
+          description: "Schedule updated successfully"
+        });
+      } else if (onStudentRegistered) {
+        // New student registration
         onStudentRegistered();
+        toast({
+          title: "Success",
+          description: "Student registration and schedule setup completed successfully"
+        });
       }
       
       setIsScheduleDialogOpen(false);
+      setEditingScheduleStudentId(null);
       setNewStudentId('');
       resetForm();
-      
-      toast({
-        title: "Success",
-        description: "Student registration and schedule setup completed successfully"
-      });
     } else {
       toast({
         title: "Error",
@@ -412,6 +426,14 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         variant: "destructive"
       });
     }
+  };
+
+  const getScheduleDialogTitle = () => {
+    if (editingScheduleStudentId) {
+      const student = students[editingScheduleStudentId];
+      return student ? student.name : 'Unknown Student';
+    }
+    return formData.name;
   };
 
   const handleDelete = async (studentId: string) => {
@@ -532,6 +554,16 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => handleEditSchedule(studentId)}
+                    className="text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
+                    disabled={!isConnected}
+                    title="Edit Schedule"
+                  >
+                    <Calendar className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => handleEdit(studentId)}
                     className="text-light-blue border-light-blue hover:bg-light-blue hover:text-white"
                     disabled={!isConnected}
@@ -567,6 +599,12 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 <p className="text-sm text-gray-dark">Email:</p>
                 <p className="text-sm">{student.email}</p>
               </div>
+              {schedules[studentId] && (
+                <div>
+                  <p className="text-sm text-gray-dark">Schedule:</p>
+                  <Badge className="bg-green-100 text-green-800">Configured</Badge>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -781,11 +819,13 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         isOpen={isScheduleDialogOpen}
         onClose={() => {
           setIsScheduleDialogOpen(false);
+          setEditingScheduleStudentId(null);
           setNewStudentId('');
           resetForm();
         }}
         onSave={handleScheduleSave}
-        studentName={formData.name}
+        studentName={getScheduleDialogTitle()}
+        existingSchedule={editingScheduleStudentId ? schedules[editingScheduleStudentId] : undefined}
       />
     </div>
   );
