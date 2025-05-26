@@ -116,6 +116,12 @@
       "password": "icct2024",
       "role": "Supervisor", 
       "email": "supervisor@icct.edu.ph"
+    },
+    "ADMIN": {
+      "name": "System Administrator",
+      "password": "password123",
+      "role": "Administrator",
+      "email": "sysadmin@icct.edu.ph"
     }
   },
   "attendanceRecords": {
