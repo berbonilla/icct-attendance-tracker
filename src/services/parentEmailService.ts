@@ -1,4 +1,3 @@
-
 import { MailSlurp } from 'mailslurp-client';
 
 const mailslurp = new MailSlurp({ 
@@ -93,23 +92,18 @@ export const sendParentAbsenceAlert = async (params: EmailParams): Promise<boole
     
     const emailContent = generateAbsenceEmailContent(params);
     
-    // Send the email with proper request object
-    await mailslurp.inboxController.sendEmail({
-      inboxId: inbox.id,
-      sendEmailRequest: {
-        to: [params.parentEmail],
-        subject: `🚨 ICCT Attendance Alert - ${params.studentName} (${params.totalAbsences} Absences)`,
-        body: emailContent,
-        isHTML: true
-      }
+    // Send the email with correct API format
+    await mailslurp.inboxController.sendEmail(inbox.id, {
+      to: [params.parentEmail],
+      subject: `🚨 ICCT Attendance Alert - ${params.studentName} (${params.totalAbsences} Absences)`,
+      body: emailContent,
+      isHTML: true
     });
     
     console.log('✅ Absence alert email sent successfully to:', params.parentEmail);
     
-    // Clean up the temporary inbox with proper request object
-    await mailslurp.inboxController.deleteInbox({
-      inboxId: inbox.id
-    });
+    // Clean up the temporary inbox
+    await mailslurp.inboxController.deleteInbox(inbox.id);
     console.log('🗑️ Temporary inbox cleaned up');
     
     return true;
