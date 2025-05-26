@@ -122,7 +122,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
       const analyticsData = calculateAnalytics();
       
       if (aiAnalyticsService.hasApiKey()) {
-        console.log('🤖 Generating AI insights...');
+        console.log('🤖 Generating Gemini AI insights...');
         const aiInsights = await aiAnalyticsService.generateInsights(analyticsData);
         setInsights(aiInsights);
       } else {
@@ -136,7 +136,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
         title: 'AI Analysis Unavailable',
         description: 'Unable to generate AI insights. Please check your API key configuration.',
         severity: 'medium',
-        action: 'Verify your OpenAI API key and try again'
+        action: 'Verify your Gemini API key and try again'
       }]);
     } finally {
       setIsAnalyzing(false);
@@ -228,21 +228,21 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
             )}
             {aiAnalyticsService.hasApiKey() && (
               <Badge className="ml-2 bg-green-500 text-white">
-                Real AI
+                Gemini AI
               </Badge>
             )}
           </CardTitle>
           <CardDescription>
             {aiAnalyticsService.hasApiKey() 
-              ? 'Powered by OpenAI GPT-4 for intelligent attendance pattern analysis'
-              : 'Configure OpenAI API key to enable real AI-powered insights'
+              ? 'Powered by Google Gemini AI for intelligent attendance pattern analysis'
+              : 'Configure Gemini API key to enable real AI-powered insights'
             }
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!aiAnalyticsService.hasApiKey() ? (
             <div className="text-center py-4">
-              <p className="text-gray-500 mb-2">AI analytics requires OpenAI API key configuration</p>
+              <p className="text-gray-500 mb-2">AI analytics requires Gemini API key configuration</p>
               <Button onClick={() => setShowKeyConfig(true)} className="bg-blue-600 hover:bg-blue-700">
                 Configure AI Analytics
               </Button>
@@ -260,7 +260,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
                       <p className="text-gray-600 text-sm mt-1">{insight.description}</p>
                       {insight.action && (
                         <p className="text-blue-600 text-sm mt-2 font-medium">
-                          🤖 AI Recommendation: {insight.action}
+                          🤖 Gemini AI Recommendation: {insight.action}
                         </p>
                       )}
                     </div>

@@ -1,4 +1,3 @@
-
 interface AttendanceInsight {
   type: 'trend' | 'risk' | 'achievement' | 'recommendation';
   title: string;
@@ -23,13 +22,16 @@ export class AIAnalyticsService {
   private apiKey: string | null = null;
 
   constructor() {
-    // Check for API key in localStorage (temporary solution)
-    this.apiKey = localStorage.getItem('openai_api_key');
+    // Check for API key in localStorage
+    this.apiKey = localStorage.getItem('gemini_api_key') || 'AIzaSyC3hwhmudIwVjtQ5HzT0t7fwK9vPtpZk68';
+    if (this.apiKey === 'AIzaSyC3hwhmudIwVjtQ5HzT0t7fwK9vPtpZk68') {
+      localStorage.setItem('gemini_api_key', this.apiKey);
+    }
   }
 
   setApiKey(key: string) {
     this.apiKey = key;
-    localStorage.setItem('openai_api_key', key);
+    localStorage.setItem('gemini_api_key', key);
   }
 
   hasApiKey(): boolean {
@@ -38,41 +40,46 @@ export class AIAnalyticsService {
 
   async generateInsights(analyticsData: AnalyticsData): Promise<AttendanceInsight[]> {
     if (!this.apiKey) {
-      throw new Error('OpenAI API key not configured');
+      throw new Error('Gemini API key not configured');
     }
 
     try {
       const prompt = this.buildAnalyticsPrompt(analyticsData);
       
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an AI analytics expert specializing in educational attendance data. Analyze the provided data and generate actionable insights in JSON format.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 1500
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.3,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1500,
+          }
         })
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
+        throw new Error(`Gemini API error: ${response.status}`);
       }
 
       const data = await response.json();
-      const insights = JSON.parse(data.choices[0].message.content);
+      const text = data.candidates[0].content.parts[0].text;
+      
+      // Extract JSON from the response
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON found in response');
+      }
+      
+      const insights = JSON.parse(jsonMatch[0]);
       
       return insights.map((insight: any) => ({
         type: insight.type || 'recommendation',
@@ -112,13 +119,13 @@ ${data.weeklyTrends.slice(0, 4).map(w =>
   `- ${w.week}: ${w.present} present, ${w.absent} absent, ${w.late} late`
 ).join('\n')}
 
-Return a JSON array of insights with this structure:
+Return ONLY a JSON array of insights with this exact structure:
 [
   {
-    "type": "trend|risk|achievement|recommendation",
+    "type": "trend",
     "title": "Brief insight title",
     "description": "Detailed analysis (max 100 words)",
-    "severity": "low|medium|high",
+    "severity": "high",
     "action": "Specific recommended action"
   }
 ]
@@ -129,6 +136,9 @@ Focus on:
 3. Course-specific issues
 4. Actionable recommendations
 5. Positive achievements to highlight
+
+Valid types: trend, risk, achievement, recommendation
+Valid severity: low, medium, high
 `;
   }
 

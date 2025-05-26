@@ -26,7 +26,7 @@ const AIKeyConfig: React.FC<AIKeyConfigProps> = ({ onKeyConfigured }) => {
   };
 
   const handleRemoveKey = () => {
-    localStorage.removeItem('openai_api_key');
+    localStorage.removeItem('gemini_api_key');
     setIsConfigured(false);
     setApiKey('');
   };
@@ -58,19 +58,19 @@ const AIKeyConfig: React.FC<AIKeyConfigProps> = ({ onKeyConfigured }) => {
           Configure AI Analytics
         </CardTitle>
         <CardDescription>
-          Enter your OpenAI API key to enable real AI-powered attendance analytics and insights.
+          Enter your Google Gemini API key to enable real AI-powered attendance analytics and insights.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="api-key">OpenAI API Key</Label>
+          <Label htmlFor="api-key">Google Gemini API Key</Label>
           <div className="relative">
             <Input
               id="api-key"
               type={showKey ? 'text' : 'password'}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
+              placeholder="AIzaSy..."
               className="pr-10"
             />
             <Button
@@ -90,7 +90,7 @@ const AIKeyConfig: React.FC<AIKeyConfigProps> = ({ onKeyConfigured }) => {
             Configure AI Analytics
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
+            <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer">
               Get API Key <ExternalLink className="w-3 h-3 ml-1" />
             </a>
           </Button>
