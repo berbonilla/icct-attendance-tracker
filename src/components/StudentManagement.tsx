@@ -51,13 +51,24 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   useEffect(() => {
     const loadStudents = async () => {
       try {
-        const dummyData = await import('../data/dummyData.json');
+        // Load from the actual database file (updatedDummyData.json)
+        const dummyDataModule = await import('../data/updatedDummyData.json');
+        const dummyData = dummyDataModule.default;
+        
+        console.log('Loading student management data from updatedDummyData.json...', dummyData);
+        
         setStudents(dummyData.students || {});
         setSchedules(dummyData.schedules || {});
-        console.log('Loaded students:', dummyData.students);
-        console.log('Loaded schedules:', dummyData.schedules);
+        
+        console.log('Student management data loaded:', {
+          studentsCount: Object.keys(dummyData.students || {}).length,
+          schedulesCount: Object.keys(dummyData.schedules || {}).length
+        });
       } catch (error) {
         console.error('Error loading students:', error);
+        // Fallback to empty data if loading fails
+        setStudents({});
+        setSchedules({});
       }
     };
 
@@ -473,7 +484,15 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       {filteredStudents.length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
-            <p className="text-gray-dark">No students found matching your search criteria.</p>
+            <p className="text-gray-dark">
+              {Object.keys(students).length === 0 
+                ? "No students registered in the system." 
+                : "No students found matching your search criteria."
+              }
+            </p>
+            {Object.keys(students).length === 0 && (
+              <p className="text-gray-500 text-sm mt-2">Start by scanning an RFID card or adding a student manually</p>
+            )}
           </CardContent>
         </Card>
       )}
