@@ -25,7 +25,8 @@ export const processAttendance = async (studentId: string, scannedTime: number):
   try {
     // Get current date and time info
     const scanDate = new Date(scannedTime);
-    const currentDay = scanDate.toLocaleLowerCase().slice(0, 3); // mon, tue, wed, etc.
+    const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const currentDay = dayNames[scanDate.getDay()]; // Get day abbreviation correctly
     const currentTime = scanDate.toTimeString().slice(0, 5); // HH:MM format
     const dateKey = scanDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
