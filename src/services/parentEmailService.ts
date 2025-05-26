@@ -93,7 +93,7 @@ export const sendParentAbsenceAlert = async (params: EmailParams): Promise<boole
     
     const emailContent = generateAbsenceEmailContent(params);
     
-    // Send the email
+    // Send the email with proper request object
     await mailslurp.inboxController.sendEmail(inbox.id, {
       to: [params.parentEmail],
       subject: `🚨 ICCT Attendance Alert - ${params.studentName} (${params.totalAbsences} Absences)`,
@@ -103,7 +103,7 @@ export const sendParentAbsenceAlert = async (params: EmailParams): Promise<boole
     
     console.log('✅ Absence alert email sent successfully to:', params.parentEmail);
     
-    // Clean up the temporary inbox
+    // Clean up the temporary inbox with proper request object
     await mailslurp.inboxController.deleteInbox(inbox.id);
     console.log('🗑️ Temporary inbox cleaned up');
     
