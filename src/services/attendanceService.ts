@@ -48,36 +48,46 @@ const determineAttendanceStatus = (
     classEnd: `${Math.floor(classEndMinutes / 60)}:${(classEndMinutes % 60).toString().padStart(2, '0')}`
   });
 
-  // Grace period: 15 minutes before class starts
+  // Grace period: 15 minutes before class starts (early arrival)
   const graceStart = classStartMinutes - 15;
   
   // Late threshold: 15 minutes after class starts
   const lateThreshold = classStartMinutes + 15;
   
-  // Absent threshold: 30 minutes after class starts
-  const absentThreshold = classStartMinutes + 30;
+  // Class ends - students should be present during class time
+  const classEndTime = classEndMinutes;
 
   console.log('📏 Attendance thresholds:', {
     graceStart: `${Math.floor(graceStart / 60)}:${(graceStart % 60).toString().padStart(2, '0')}`,
     classStart: `${Math.floor(classStartMinutes / 60)}:${(classStartMinutes % 60).toString().padStart(2, '0')}`,
     lateThreshold: `${Math.floor(lateThreshold / 60)}:${(lateThreshold % 60).toString().padStart(2, '0')}`,
-    absentThreshold: `${Math.floor(absentThreshold / 60)}:${(absentThreshold % 60).toString().padStart(2, '0')}`
+    classEnd: `${Math.floor(classEndTime / 60)}:${(classEndTime % 60).toString().padStart(2, '0')}`
   });
 
-  // Determine status based on timing
+  // PRESENT: Scan within grace period (15 min before) to 15 min after class starts
   if (scanTimeMinutes >= graceStart && scanTimeMinutes <= lateThreshold) {
-    console.log('✅ Status: PRESENT (scanned within grace period or up to 15 min late)');
+    console.log('✅ Status: PRESENT (scanned within acceptable timeframe)');
     return 'present';
-  } else if (scanTimeMinutes > lateThreshold && scanTimeMinutes <= absentThreshold) {
-    console.log('⚠️ Status: LATE (scanned 15-30 minutes after class start)');
+  }
+  
+  // LATE: Scan between 15 minutes after class starts and class end time
+  else if (scanTimeMinutes > lateThreshold && scanTimeMinutes <= classEndTime) {
+    console.log('⚠️ Status: LATE (scanned during class but after 15-minute grace period)');
     return 'late';
-  } else {
-    console.log('❌ Status: ABSENT (scanned more than 30 minutes after class start or too early)');
+  }
+  
+  // ABSENT: Scan after class ends or too early (more than 15 min before class)
+  else {
+    if (scanTimeMinutes > classEndTime) {
+      console.log('❌ Status: ABSENT (scanned after class ended)');
+    } else {
+      console.log('❌ Status: ABSENT (scanned too early - more than 15 minutes before class)');
+    }
     return 'absent';
   }
 };
 
-const findBestMatchingClass = (
+const findMatchingClass = (
   scanTimeMinutes: number,
   slots: ScheduleSlot[],
   scheduleData: StudentSchedule
@@ -86,13 +96,17 @@ const findBestMatchingClass = (
   status: 'present' | 'late' | 'absent';
   subject: string;
 } | null => {
-  console.log('🔍 Finding best matching class for scan time:', scanTimeMinutes);
+  console.log('🔍 Finding matching class for scan time:', {
+    scanTimeMinutes,
+    scanTime: `${Math.floor(scanTimeMinutes / 60)}:${(scanTimeMinutes % 60).toString().padStart(2, '0')}`,
+    availableSlots: slots.map(s => s.timeSlot)
+  });
 
   let bestMatch: {
     slot: ScheduleSlot;
     status: 'present' | 'late' | 'absent';
     subject: string;
-    priority: number;
+    timeDifference: number;
   } | null = null;
 
   for (const slot of slots) {
@@ -102,45 +116,38 @@ const findBestMatchingClass = (
     const classStartMinutes = parseTime(startTime);
     const classEndMinutes = parseTime(endTime);
 
-    console.log('🕐 Checking slot:', slot.timeSlot, {
+    console.log('🕐 Checking class:', slot.timeSlot, {
       classStartMinutes,
       classEndMinutes,
       scanTimeMinutes
     });
 
-    // Check if scan time is within reasonable range for this class
-    const graceStart = classStartMinutes - 15;
-    const absentThreshold = classStartMinutes + 30;
-
-    if (scanTimeMinutes >= graceStart && scanTimeMinutes <= absentThreshold) {
+    // Calculate how close the scan time is to the class start time
+    const timeDifference = Math.abs(scanTimeMinutes - classStartMinutes);
+    
+    // Only consider classes that are within a reasonable timeframe (up to 2 hours before or after)
+    const maxTimeWindow = 120; // 2 hours in minutes
+    
+    if (timeDifference <= maxTimeWindow) {
       const subject = scheduleData.subjects[slot.subjectId];
       const subjectName = subject ? `${subject.code} - ${subject.name}` : slot.subjectId;
       
       const status = determineAttendanceStatus(scanTimeMinutes, classStartMinutes, classEndMinutes);
       
-      // Priority: prefer classes that are currently happening or about to start
-      let priority = 0;
-      if (scanTimeMinutes >= classStartMinutes && scanTimeMinutes <= classEndMinutes) {
-        priority = 3; // Currently in class
-      } else if (scanTimeMinutes >= graceStart && scanTimeMinutes < classStartMinutes) {
-        priority = 2; // Before class starts (grace period)
-      } else {
-        priority = 1; // After class starts
-      }
-
       console.log('⭐ Potential match found:', {
         slot: slot.timeSlot,
         subject: subjectName,
         status,
-        priority
+        timeDifference: `${timeDifference} minutes`
       });
 
-      if (!bestMatch || priority > bestMatch.priority) {
+      // Prefer the class with the smallest time difference (closest to scan time)
+      if (!bestMatch || timeDifference < bestMatch.timeDifference) {
         bestMatch = {
           slot,
           status,
           subject: subjectName,
-          priority
+          timeDifference
         };
       }
     }
@@ -150,7 +157,8 @@ const findBestMatchingClass = (
     console.log('🎯 Best match selected:', {
       slot: bestMatch.slot.timeSlot,
       subject: bestMatch.subject,
-      status: bestMatch.status
+      status: bestMatch.status,
+      timeDifference: `${bestMatch.timeDifference} minutes from class start`
     });
     return {
       slot: bestMatch.slot,
@@ -159,7 +167,7 @@ const findBestMatchingClass = (
     };
   }
 
-  console.log('❌ No matching class found');
+  console.log('❌ No matching class found within reasonable timeframe');
   return null;
 };
 
@@ -225,19 +233,19 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     console.log('🕐 Available time slots:', slots.map(s => s.timeSlot));
 
-    // Find the best matching time slot
-    const bestMatch = findBestMatchingClass(scanTimeInMinutes, slots, scheduleData);
+    // Find the best matching class based on scan time vs class schedule
+    const matchingClass = findMatchingClass(scanTimeInMinutes, slots, scheduleData);
 
-    // If no exact match found, record as general attendance
-    if (!bestMatch) {
-      console.log('📝 No exact class match - recording general attendance');
+    // If no class match found, record as general attendance
+    if (!matchingClass) {
+      console.log('📝 No class match found - recording general attendance');
       await recordGeneralAttendance(studentId, scanDate, currentTime, dateKey, scannedTime);
       await markRFIDAsProcessed(studentId);
       return;
     }
 
     // Generate unique key for this class
-    const classKey = generateClassKey(bestMatch.slot.timeSlot, bestMatch.slot.subjectId!);
+    const classKey = generateClassKey(matchingClass.slot.timeSlot, matchingClass.slot.subjectId!);
 
     // Check if attendance for this specific class already exists
     if (existingAttendance[classKey]) {
@@ -252,10 +260,10 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     // Create new attendance record for this specific class
     const classAttendanceRecord: ClassAttendanceRecord = {
-      status: bestMatch.status,
+      status: matchingClass.status,
       timeIn: currentTime,
-      subject: bestMatch.subject,
-      timeSlot: bestMatch.slot.timeSlot,
+      subject: matchingClass.subject,
+      timeSlot: matchingClass.slot.timeSlot,
       recordedAt: scannedTime
     };
 
@@ -275,10 +283,10 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     await set(attendanceRef, updatedDayAttendance);
 
     console.log('✅ Attendance record saved successfully for student:', studentId);
-    console.log('📊 Final attendance status:', bestMatch.status.toUpperCase());
+    console.log('📊 Final attendance status:', matchingClass.status.toUpperCase());
 
     // Check for absence alerts after recording attendance
-    if (bestMatch.status === 'absent') {
+    if (matchingClass.status === 'absent') {
       console.log('🚨 Student marked absent - checking for absence alert threshold');
       await checkStudentAbsences(studentId);
     }
