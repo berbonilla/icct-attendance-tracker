@@ -31,18 +31,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [autoAdminMode, setAutoAdminMode] = useState(false);
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
 
-  // Monitor ScannedIDs for automatic RFID detection
+  // Monitor ScannedIDs for automatic RFID detection every 5 seconds
   useEffect(() => {
     const checkScannedRFIDs = async () => {
       try {
         const dummyData = await import('../data/dummyData.json');
         
-        // Check if ScannedIDs exists and has content
+        console.log('Checking ScannedIDs...', dummyData.ScannedIDs);
+        
+        // Only proceed if ScannedIDs exists and has unprocessed content
         if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
-          // Find the earliest unprocessed RFID
+          // Find the earliest unprocessed RFID that hasn't been processed locally
           const unprocessedRFIDs = Object.entries(dummyData.ScannedIDs)
             .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
             .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+          console.log('Unprocessed RFIDs found:', unprocessedRFIDs);
 
           if (unprocessedRFIDs.length > 0) {
             const [earliestRFID, data] = unprocessedRFIDs[0];
@@ -56,17 +60,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               student => student.rfid === earliestRFID
             );
             
+            console.log('RFID registration status:', isRegistered ? 'registered' : 'unregistered');
+            
             if (!isRegistered) {
               console.log('Unregistered RFID detected, triggering admin mode');
               setPendingRFID(earliestRFID);
               setAutoAdminMode(true);
             } else {
-              console.log('RFID is registered:', earliestRFID);
+              console.log('RFID is registered, processing attendance for:', earliestRFID);
+              // TODO: Add attendance processing logic here
             }
           }
         } else {
-          // No ScannedIDs exist, ensure admin mode is off
+          console.log('No ScannedIDs found or all processed');
+          // Reset admin mode if no pending RFIDs and no scanned IDs
           if (autoAdminMode && !pendingRFID) {
+            console.log('Resetting admin mode - no pending RFIDs');
             setAutoAdminMode(false);
           }
         }
@@ -75,10 +84,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    // Initial check
     checkScannedRFIDs();
     
-    // Check for new RFIDs every 1 second
-    const interval = setInterval(checkScannedRFIDs, 1000);
+    // Check for new RFIDs every 5 seconds
+    const interval = setInterval(checkScannedRFIDs, 5000);
     
     return () => clearInterval(interval);
   }, [processedRFIDs, autoAdminMode, pendingRFID]);
@@ -126,24 +136,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProcessedRFIDs(new Set());
   };
 
+  // Clear session storage on logout and populate on login
   useEffect(() => {
-    // Check for stored session (optional)
-    const storedUser = localStorage.getItem('icct_user');
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData.user);
-      setUserType(userData.userType);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Store session (optional)
     if (user && userType) {
       localStorage.setItem('icct_user', JSON.stringify({ user, userType }));
     } else {
       localStorage.removeItem('icct_user');
     }
   }, [user, userType]);
+
+  // Load session on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('icct_user');
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setUser(userData.user);
+        setUserType(userData.userType);
+      } catch (error) {
+        console.error('Error loading stored user:', error);
+        localStorage.removeItem('icct_user');
+      }
+    }
+  }, []);
 
   const value = {
     user,

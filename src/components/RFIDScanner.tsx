@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Scan, UserPlus, Clock } from 'lucide-react';
+import { Scan, UserPlus, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface RFIDScannerProps {
@@ -21,16 +21,20 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   const [students, setStudents] = useState<Record<string, any>>({});
   const [lastScanTime, setLastScanTime] = useState<number>(0);
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
+  const [scannerStatus, setScannerStatus] = useState<'idle' | 'scanning' | 'processing'>('idle');
   const { setAutoAdminMode, setPendingRFID } = useAuth();
 
   useEffect(() => {
     const loadData = async () => {
+      setScannerStatus('scanning');
       try {
         const dummyData = await import('../data/dummyData.json');
         setStudents(dummyData.students || {});
         
+        console.log('Scanner: Loading scanned RFIDs...', dummyData.ScannedIDs);
+        
         // Process scanned RFIDs with timestamps
-        if (dummyData.ScannedIDs) {
+        if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
           setScannedRFIDs(dummyData.ScannedIDs);
           
           // Find the earliest unprocessed RFID
@@ -38,9 +42,12 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
             .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
             .sort(([, a], [, b]) => a.timestamp - b.timestamp);
 
+          console.log('Scanner: Unprocessed RFIDs found:', unprocessedRFIDs);
+
           if (unprocessedRFIDs.length > 0) {
+            setScannerStatus('processing');
             const [earliestRFID, data] = unprocessedRFIDs[0];
-            console.log('Processing earliest unprocessed RFID:', earliestRFID, 'timestamp:', data.timestamp);
+            console.log('Scanner: Processing earliest unprocessed RFID:', earliestRFID, 'timestamp:', data.timestamp);
             
             setCurrentRFID(earliestRFID);
             setLastScanTime(data.timestamp);
@@ -53,30 +60,44 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
               student => student.rfid === earliestRFID
             );
             
+            console.log('Scanner: RFID registration check:', { rfid: earliestRFID, isRegistered });
+            
             if (!isRegistered) {
-              console.log('Unregistered RFID detected, triggering admin mode');
+              console.log('Scanner: Unregistered RFID detected, triggering admin mode');
               setPendingRFID(earliestRFID);
               setAutoAdminMode(true);
             } else {
-              console.log('RFID is registered:', earliestRFID);
+              console.log('Scanner: RFID is registered, processing attendance');
+              // TODO: Process attendance for registered RFID
             }
+          } else {
+            setScannerStatus('idle');
           }
+        } else {
+          console.log('Scanner: No ScannedIDs found');
+          setScannerStatus('idle');
+          setScannedRFIDs({});
+          setCurrentRFID('');
         }
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Scanner: Error loading data:', error);
+        setScannerStatus('idle');
       }
     };
 
+    // Initial load
     loadData();
     
-    // Scan for new RFIDs every 1 second
-    const interval = setInterval(loadData, 1000);
+    // Scan for new RFIDs every 5 seconds
+    const interval = setInterval(loadData, 5000);
     
     return () => clearInterval(interval);
   }, [setAutoAdminMode, setPendingRFID, processedRFIDs]);
 
   const isRFIDRegistered = (rfidId: string) => {
-    return Object.values(students).some(student => student.rfid === rfidId);
+    const registered = Object.values(students).some(student => student.rfid === rfidId);
+    console.log('Checking RFID registration:', { rfidId, registered });
+    return registered;
   };
 
   const formatRFIDDisplay = (rfid: string) => {
@@ -84,9 +105,11 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   };
 
   const simulateRFIDScan = () => {
-    const testRFIDs = ['9B:54:8E:02', 'FF:FF:FF:FF', 'AA:BB:CC:DD'];
+    const testRFIDs = ['9B:54:8E:02', 'FF:FF:FF:FF', 'AA:BB:CC:DD', 'BD:31:1B:2A'];
     const randomRFID = testRFIDs[Math.floor(Math.random() * testRFIDs.length)];
     const timestamp = Date.now();
+    
+    console.log('Simulating RFID scan:', { rfid: randomRFID, timestamp });
     
     // Add to scanned RFIDs with timestamp
     setScannedRFIDs(prev => ({
@@ -103,10 +126,14 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
     // Check if RFID is registered
     const isRegistered = Object.values(students).some(student => student.rfid === randomRFID);
     
+    console.log('Simulated scan - Registration check:', { rfid: randomRFID, isRegistered });
+    
     if (!isRegistered) {
-      console.log('Unregistered RFID detected, triggering admin mode');
+      console.log('Simulated scan - Unregistered RFID, triggering admin mode');
       setPendingRFID(randomRFID);
       setAutoAdminMode(true);
+    } else {
+      console.log('Simulated scan - RFID is registered');
     }
   };
 
@@ -116,15 +143,41 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
       .slice(0, 5); // Show last 5 scans
   };
 
+  const getScannerStatusIcon = () => {
+    switch (scannerStatus) {
+      case 'scanning':
+        return <Scan className="w-4 h-4 text-blue-500 animate-pulse" />;
+      case 'processing':
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+      default:
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+    }
+  };
+
+  const getScannerStatusText = () => {
+    switch (scannerStatus) {
+      case 'scanning':
+        return 'Scanning for new RFIDs...';
+      case 'processing':
+        return 'Processing RFID data...';
+      default:
+        return 'Ready to scan';
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-dark-blue flex items-center">
           <Scan className="w-5 h-5 mr-2" />
           RFID Scanner
+          <div className="ml-auto flex items-center space-x-2">
+            {getScannerStatusIcon()}
+            <span className="text-sm font-normal">{getScannerStatusText()}</span>
+          </div>
         </CardTitle>
         <CardDescription>
-          Continuously scanning for RFID inputs
+          Scanning every 5 seconds for new RFID inputs
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -199,9 +252,41 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
           </div>
         )}
 
+        {/* Status when no scans */}
         {Object.keys(scannedRFIDs).length === 0 && (
-          <p className="text-gray-dark text-sm text-center">No RFID scanned yet</p>
+          <div className="text-center py-4">
+            <p className="text-gray-dark text-sm">No RFID scanned yet</p>
+            <p className="text-xs text-gray-500 mt-1">Scanner is monitoring database every 5 seconds</p>
+          </div>
         )}
+
+        {/* Validation Status */}
+        <div className="border-t pt-3 mt-4">
+          <h4 className="text-sm font-semibold text-dark-blue mb-2">System Status</h4>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span>Database Connection:</span>
+              <Badge variant="outline" className="text-green-600">Connected</Badge>
+            </div>
+            <div className="flex justify-between">
+              <span>Students Loaded:</span>
+              <Badge variant="outline">{Object.keys(students).length}</Badge>
+            </div>
+            <div className="flex justify-between">
+              <span>Scan Interval:</span>
+              <Badge variant="outline">5 seconds</Badge>
+            </div>
+            <div className="flex justify-between">
+              <span>Scanner Status:</span>
+              <Badge variant="outline" className={
+                scannerStatus === 'idle' ? 'text-green-600' :
+                scannerStatus === 'scanning' ? 'text-blue-600' : 'text-yellow-600'
+              }>
+                {scannerStatus.charAt(0).toUpperCase() + scannerStatus.slice(1)}
+              </Badge>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

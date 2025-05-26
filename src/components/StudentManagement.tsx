@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +54,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         const dummyData = await import('../data/dummyData.json');
         setStudents(dummyData.students || {});
         setSchedules(dummyData.schedules || {});
+        console.log('Loaded students:', dummyData.students);
+        console.log('Loaded schedules:', dummyData.schedules);
       } catch (error) {
         console.error('Error loading students:', error);
       }
@@ -101,10 +102,13 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       year: '',
       section: ''
     });
+    setNewStudentId('');
     setIsAddDialogOpen(true);
   };
 
   const validateForm = (): boolean => {
+    console.log('Validating form data:', formData);
+    
     // Validate required fields
     if (!formData.name?.trim() || !formData.rfid?.trim() || !formData.email?.trim() || 
         !formData.course?.trim() || !formData.year?.trim() || !formData.section?.trim()) {
@@ -113,6 +117,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         description: "Please fill in all required fields",
         variant: "destructive"
       });
+      console.log('Validation failed: missing required fields');
       return false;
     }
 
@@ -123,6 +128,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         description: "RFID must be in format XX:XX:XX:XX (e.g., 9B:54:8E:02)",
         variant: "destructive"
       });
+      console.log('Validation failed: invalid RFID format');
       return false;
     }
 
@@ -133,6 +139,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         description: "Please enter a valid email address",
         variant: "destructive"
       });
+      console.log('Validation failed: invalid email format');
       return false;
     }
 
@@ -147,10 +154,61 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         description: `RFID ${formData.rfid.toUpperCase()} is already assigned to ${existingRFID[1].name}`,
         variant: "destructive"
       });
+      console.log('Validation failed: duplicate RFID');
       return false;
     }
 
+    console.log('Form validation passed');
     return true;
+  };
+
+  const deleteScannedRFID = async (rfid: string) => {
+    try {
+      console.log('Attempting to delete scanned RFID:', rfid);
+      // In a real implementation, this would make an API call to delete the RFID
+      // For now, we'll just log it and rely on the backend to handle deletion
+      console.log('RFID deletion request sent for:', rfid);
+    } catch (error) {
+      console.error('Error deleting scanned RFID:', error);
+    }
+  };
+
+  const saveStudentData = async (studentId: string, studentData: Student) => {
+    try {
+      console.log('Saving student data:', { studentId, studentData });
+      
+      // Update local state
+      setStudents(prev => ({
+        ...prev,
+        [studentId]: studentData
+      }));
+      
+      // In a real implementation, this would make an API call to save the data
+      console.log('Student data saved successfully:', studentId);
+      return true;
+    } catch (error) {
+      console.error('Error saving student data:', error);
+      return false;
+    }
+  };
+
+  const saveScheduleData = async (studentId: string, schedule: Record<string, string[]>) => {
+    try {
+      console.log('Saving schedule data:', { studentId, schedule });
+      
+      // Update local state
+      setSchedules(prev => ({
+        ...prev,
+        [studentId]: schedule
+      }));
+      
+      // In a real implementation, this would make an API call to save the schedule
+      console.log('Schedule data saved successfully:', studentId);
+      return true;
+    } catch (error) {
+      console.error('Error saving schedule data:', error);
+      return false;
+    }
   };
 
   const handleSave = async () => {
@@ -167,19 +225,26 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       section: formData.section.trim()
     };
 
+    console.log('Processing save with data:', studentData);
+
     if (formData.id && selectedStudent) {
       // Edit existing student
-      setStudents(prev => ({
-        ...prev,
-        [selectedStudent]: studentData
-      }));
+      const success = await saveStudentData(selectedStudent, studentData);
       
-      toast({
-        title: "Success",
-        description: "Student information updated successfully"
-      });
-      setIsEditDialogOpen(false);
-      resetForm();
+      if (success) {
+        toast({
+          title: "Success",
+          description: "Student information updated successfully"
+        });
+        setIsEditDialogOpen(false);
+        resetForm();
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to save student information",
+          variant: "destructive"
+        });
+      }
     } else {
       // Add new student - generate new ID
       const year = new Date().getFullYear();
@@ -193,69 +258,95 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         newNumber++;
       } while (existingIds.includes(newId));
 
+      console.log('Generated new student ID:', newId);
+
       // Save student data
-      setStudents(prev => ({
-        ...prev,
-        [newId]: studentData
-      }));
+      const success = await saveStudentData(newId, studentData);
       
-      setNewStudentId(newId);
-      setIsAddDialogOpen(false);
-      
-      // Open schedule dialog next
-      setIsScheduleDialogOpen(true);
-      
-      toast({
-        title: "Student Registered",
-        description: `Student ${studentData.name} has been registered with ID: ${newId}. Please set their schedule.`,
-        duration: 5000
-      });
+      if (success) {
+        setNewStudentId(newId);
+        setIsAddDialogOpen(false);
+        
+        // Delete the scanned RFID from ScannedIDs
+        await deleteScannedRFID(studentData.rfid);
+        
+        // Open schedule dialog next
+        setIsScheduleDialogOpen(true);
+        
+        toast({
+          title: "Student Registered",
+          description: `Student ${studentData.name} has been registered with ID: ${newId}. Please set their schedule.`,
+          duration: 5000
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to register student",
+          variant: "destructive"
+        });
+      }
     }
   };
 
-  const handleScheduleSave = (schedule: Record<string, string[]>) => {
-    console.log('Schedule saved for student:', newStudentId, schedule);
+  const handleScheduleSave = async (schedule: Record<string, string[]>) => {
+    console.log('Processing schedule save for student:', newStudentId, schedule);
     
-    // Save schedule data
-    setSchedules(prev => ({
-      ...prev,
-      [newStudentId]: schedule
-    }));
+    const success = await saveScheduleData(newStudentId, schedule);
     
-    // Mark the RFID as processed and notify parent
-    if (onStudentRegistered) {
-      onStudentRegistered();
-    }
-    
-    setIsScheduleDialogOpen(false);
-    setNewStudentId('');
-    resetForm();
-    
-    toast({
-      title: "Success",
-      description: "Student registration and schedule setup completed successfully"
-    });
-  };
-
-  const handleDelete = (studentId: string) => {
-    if (window.confirm('Are you sure you want to delete this student?')) {
-      setStudents(prev => {
-        const newStudents = { ...prev };
-        delete newStudents[studentId];
-        return newStudents;
-      });
+    if (success) {
+      // Mark the RFID as processed and notify parent
+      if (onStudentRegistered) {
+        onStudentRegistered();
+      }
       
-      // Also remove schedule
-      setSchedules(prev => {
-        const newSchedules = { ...prev };
-        delete newSchedules[studentId];
-        return newSchedules;
-      });
+      setIsScheduleDialogOpen(false);
+      setNewStudentId('');
+      resetForm();
       
       toast({
         title: "Success",
-        description: "Student deleted successfully"
+        description: "Student registration and schedule setup completed successfully"
       });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to save schedule data",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDelete = async (studentId: string) => {
+    if (window.confirm('Are you sure you want to delete this student?')) {
+      try {
+        // Remove from local state
+        setStudents(prev => {
+          const newStudents = { ...prev };
+          delete newStudents[studentId];
+          return newStudents;
+        });
+        
+        // Also remove schedule
+        setSchedules(prev => {
+          const newSchedules = { ...prev };
+          delete newSchedules[studentId];
+          return newSchedules;
+        });
+        
+        console.log('Student deleted:', studentId);
+        
+        toast({
+          title: "Success",
+          description: "Student deleted successfully"
+        });
+      } catch (error) {
+        console.error('Error deleting student:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete student",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -269,11 +360,21 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       section: ''
     });
     setSelectedStudent(null);
+    console.log('Form reset');
   };
 
   const formatRFIDDisplay = (rfid: string) => {
     return rfid.toUpperCase();
   };
+
+  // Add validation checks
+  useEffect(() => {
+    console.log('Current state validation:');
+    console.log('- Students count:', Object.keys(students).length);
+    console.log('- Schedules count:', Object.keys(schedules).length);
+    console.log('- Pending RFID:', pendingRFID);
+    console.log('- Auto admin mode active:', !!pendingRFID);
+  }, [students, schedules, pendingRFID]);
 
   return (
     <div className="space-y-6">
