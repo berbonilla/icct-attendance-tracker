@@ -7,29 +7,41 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar } from 'lucide-react';
 import { AttendanceRecord } from '@/types/attendance';
+import { database } from '@/config/firebase';
+import { ref, onValue, off } from 'firebase/database';
+
+interface Subject {
+  name: string;
+  code: string;
+  color: string;
+}
+
+interface ScheduleSlot {
+  timeSlot: string;
+  subjectId: string | null;
+}
 
 const StudentDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [attendanceData, setAttendanceData] = useState<Record<string, AttendanceRecord>>({});
-  const [schedule, setSchedule] = useState<Record<string, string[]>>({});
+  const [scheduleData, setScheduleData] = useState<{
+    subjects: Record<string, Subject>;
+    timeSlots: Record<string, ScheduleSlot[]>;
+  }>({ subjects: {}, timeSlots: {} });
 
   useEffect(() => {
     const loadStudentData = async () => {
       try {
+        // Load dummy attendance data (until attendance is moved to Firebase)
         const dummyData = await import('../data/dummyData.json');
         const studentAttendance = dummyData.attendanceRecords[user.id as keyof typeof dummyData.attendanceRecords];
-        const studentSchedule = dummyData.schedules[user.id as keyof typeof dummyData.schedules];
         
         if (studentAttendance) {
-          // Type assertion to ensure compatibility
           const typedAttendance = studentAttendance as Record<string, AttendanceRecord>;
           setAttendanceData(typedAttendance);
         }
-        if (studentSchedule) {
-          setSchedule(studentSchedule);
-        }
       } catch (error) {
-        console.error('Error loading student data:', error);
+        console.error('Error loading attendance data:', error);
       }
     };
 
@@ -37,6 +49,59 @@ const StudentDashboard: React.FC = () => {
       loadStudentData();
     }
   }, [user]);
+
+  // Load schedule data from Firebase
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('Loading schedule data for student:', user.id);
+    
+    const scheduleRef = ref(database, `schedules/${user.id}`);
+    
+    const unsubscribe = onValue(scheduleRef, (snapshot) => {
+      const data = snapshot.val();
+      console.log('Schedule data from Firebase:', data);
+      
+      if (data) {
+        const subjects = data.subjects || {};
+        const timeSlots: Record<string, ScheduleSlot[]> = {};
+        
+        // Convert Firebase schedule format to our component format
+        Object.keys(data).forEach(key => {
+          if (key !== 'subjects' && data[key]) {
+            const daySchedule: ScheduleSlot[] = [];
+            
+            // Handle indexed structure from Firebase
+            Object.values(data[key]).forEach((slot: any) => {
+              if (slot && slot.timeSlot) {
+                daySchedule.push({
+                  timeSlot: slot.timeSlot,
+                  subjectId: slot.subjectId
+                });
+              }
+            });
+            
+            // Sort by time slot
+            daySchedule.sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
+            timeSlots[key] = daySchedule;
+          }
+        });
+        
+        setScheduleData({ subjects, timeSlots });
+        console.log('Processed schedule data:', { subjects, timeSlots });
+      } else {
+        console.log('No schedule data found');
+        setScheduleData({ subjects: {}, timeSlots: {} });
+      }
+    }, (error) => {
+      console.error('Error loading schedule data:', error);
+    });
+
+    return () => {
+      off(scheduleRef);
+      unsubscribe();
+    };
+  }, [user?.id]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
@@ -66,6 +131,11 @@ const StudentDashboard: React.FC = () => {
       late,
       percentage: total > 0 ? Math.round((present / total) * 100) : 0
     };
+  };
+
+  const getSubjectForSlot = (subjectId: string | null) => {
+    if (!subjectId) return null;
+    return scheduleData.subjects[subjectId] || null;
   };
 
   const stats = calculateAttendanceStats();
@@ -173,26 +243,30 @@ const StudentDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {Object.entries(attendanceData)
-                    .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-                    .map(([date, record]) => (
-                      <div key={date} className="flex justify-between items-center p-3 bg-gray-light rounded-lg">
-                        <div>
-                          <p className="font-semibold">{new Date(date).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}</p>
-                          {record.timeIn && (
-                            <p className="text-sm text-gray-dark">
-                              Time In: {record.timeIn} {record.timeOut && `| Time Out: ${record.timeOut}`}
-                            </p>
-                          )}
+                  {Object.entries(attendanceData).length > 0 ? (
+                    Object.entries(attendanceData)
+                      .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+                      .map(([date, record]) => (
+                        <div key={date} className="flex justify-between items-center p-3 bg-gray-light rounded-lg">
+                          <div>
+                            <p className="font-semibold">{new Date(date).toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}</p>
+                            {record.timeIn && (
+                              <p className="text-sm text-gray-dark">
+                                Time In: {record.timeIn} {record.timeOut && `| Time Out: ${record.timeOut}`}
+                              </p>
+                            )}
+                          </div>
+                          {getStatusBadge(record.status)}
                         </div>
-                        {getStatusBadge(record.status)}
-                      </div>
-                    ))}
+                      ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No attendance records found</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -206,18 +280,41 @@ const StudentDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {Object.entries(schedule).map(([day, times]) => (
-                    <div key={day} className="border border-gray-medium rounded-lg p-4">
-                      <h3 className="font-semibold text-dark-blue capitalize mb-2">{day}</h3>
-                      <div className="space-y-1">
-                        {times.map((time, index) => (
-                          <div key={index} className="bg-gray-light p-2 rounded text-sm">
-                            {time}
-                          </div>
-                        ))}
+                  {Object.keys(scheduleData.timeSlots).length > 0 ? (
+                    Object.entries(scheduleData.timeSlots).map(([day, slots]) => (
+                      <div key={day} className="border border-gray-medium rounded-lg p-4">
+                        <h3 className="font-semibold text-dark-blue capitalize mb-3">{day}</h3>
+                        <div className="space-y-2">
+                          {slots.map((slot, index) => {
+                            const subject = getSubjectForSlot(slot.subjectId);
+                            return (
+                              <div 
+                                key={index} 
+                                className={`p-3 rounded-lg flex items-center justify-between ${
+                                  subject ? subject.color : 'bg-gray-100'
+                                }`}
+                              >
+                                <div>
+                                  <span className="font-mono font-medium text-sm">{slot.timeSlot}</span>
+                                  {subject && (
+                                    <div className="mt-1">
+                                      <span className="font-semibold">{subject.code}</span>
+                                      <span className="text-sm ml-2">{subject.name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No class schedule found</p>
+                      <p className="text-sm text-gray-400 mt-2">Your schedule will appear here once it's set up by an administrator</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
