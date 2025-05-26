@@ -202,6 +202,26 @@ const DragDropSchedule: React.FC<DragDropScheduleProps> = ({ subjects, schedule,
     return endMinutes > startMinutes;
   };
 
+  // Handle drop directly on existing slot (for both custom and preset time slots)
+  const handleSlotDrop = (e: React.DragEvent, day: string, slotId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedSubject) return;
+    
+    const newSchedule = { ...schedule };
+    if (!newSchedule[day]) return;
+    
+    const slotIndex = newSchedule[day].findIndex(slot => slot.id === slotId);
+    if (slotIndex >= 0) {
+      newSchedule[day][slotIndex].subjectId = draggedSubject.id;
+      onScheduleChange(newSchedule);
+    }
+    
+    setDraggedSubject(null);
+    setDragOverSlot(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Draggable subjects */}
@@ -250,14 +270,23 @@ const DragDropSchedule: React.FC<DragDropScheduleProps> = ({ subjects, schedule,
                 {/* Show existing schedule slots */}
                 {schedule[day]?.map((slot) => {
                   const subject = getSubjectForSlot(slot.subjectId);
+                  const dropZoneId = `${day}-${slot.timeSlot}`;
+                  const isHighlighted = dragOverSlot === dropZoneId;
+                  
                   return (
                     <div
                       key={slot.id}
-                      draggable
-                      onDragStart={(e) => handleSlotDragStart(e, day, slot.id)}
-                      className={`flex items-center justify-between p-2 rounded text-sm cursor-move hover:shadow-md transition-all duration-200 ${
-                        subject ? subject.color : 'bg-gray-100 border-2 border-dashed border-gray-300'
-                      }`}
+                      draggable={slot.subjectId !== null}
+                      onDragStart={(e) => slot.subjectId && handleSlotDragStart(e, day, slot.id)}
+                      onDragOver={handleDragOver}
+                      onDragEnter={(e) => handleDragEnter(e, day, slot.timeSlot)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleSlotDrop(e, day, slot.id)}
+                      className={`flex items-center justify-between p-2 rounded text-sm transition-all duration-200 ${
+                        subject 
+                          ? `${subject.color} cursor-move hover:shadow-md` 
+                          : 'bg-gray-100 border-2 border-dashed border-gray-300'
+                      } ${isHighlighted ? 'ring-2 ring-blue-500 scale-105' : ''}`}
                     >
                       <div className="flex items-center">
                         <GripVertical className="w-3 h-3 mr-2 opacity-60" />
