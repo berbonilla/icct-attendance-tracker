@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { GraduationCap, Users } from 'lucide-react';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -84,84 +83,77 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-800 to-blue-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <GraduationCap className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            ICCT Attendance
+          <h1 className="text-4xl font-bold text-white mb-2">
+            ICCT RFID System
           </h1>
-          <p className="text-gray-600">
-            Secure access to your academic portal
+          <p className="text-blue-200 text-lg">
+            Student Attendance Management
           </p>
           
           {pendingRFID && (
-            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-800">
+            <div className="mt-6 p-4 bg-blue-700/50 border border-blue-600 rounded-lg backdrop-blur-sm">
+              <p className="text-sm text-blue-100">
                 RFID Card Detected: {pendingRFID}
               </p>
             </div>
           )}
         </div>
 
-        {/* Login Card */}
-        <Card className="shadow-lg border-0">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">
-              {autoAdminMode ? 'Administrator Access' : 'Sign In'}
+        {/* Access Card */}
+        <Card className="shadow-2xl border-0 bg-white">
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="text-xl text-blue-800 bg-blue-100 py-2 px-4 rounded-lg inline-block mx-auto">
+              Access System
             </CardTitle>
-            <CardDescription>
-              {autoAdminMode 
-                ? 'Administrator login required for RFID registration'
-                : 'Enter your Student ID (TA202200XXX) or Administrator credentials'
-              }
+            <CardDescription className="text-blue-600 font-medium mt-3">
+              Enter your Student ID (TA202200XXX) or Admin ID
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {!autoAdminMode && (
-              <form onSubmit={handleIdSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="id">Academic ID</Label>
+              <form onSubmit={handleIdSubmit} className="space-y-6">
+                <div className="space-y-3">
+                  <Label htmlFor="id" className="text-gray-700 font-medium">ID Number</Label>
                   <Input
                     id="id"
                     type="text"
                     placeholder="Enter Student ID or Admin ID"
                     value={idInput}
                     onChange={(e) => setIdInput(e.target.value)}
-                    className="h-11"
+                    className="h-12 text-center border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full h-11"
+                  className="w-full h-12 bg-blue-800 hover:bg-blue-900 text-white font-medium text-lg"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <div className="flex items-center">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                      Signing in...
+                      Access System
                     </div>
                   ) : (
-                    'Sign In'
+                    'Access System'
                   )}
                 </Button>
               </form>
             )}
             
             {autoAdminMode && (
-              <div className="text-center space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                  <p className="text-sm text-gray-700">
+              <div className="text-center space-y-6">
+                <div className="p-6 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-blue-800 font-medium">
                     Unregistered RFID detected. Administrator access required.
                   </p>
                 </div>
                 <Button 
                   onClick={() => setShowPasswordDialog(true)}
-                  className="w-full h-11"
+                  className="w-full h-12 bg-blue-800 hover:bg-blue-900 text-white font-medium text-lg"
                 >
                   Administrator Login
                 </Button>
@@ -173,10 +165,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
       {/* Admin Password Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle>Administrator Authentication</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-blue-800">Administrator Authentication</DialogTitle>
+            <DialogDescription className="text-blue-600">
               {pendingRFID 
                 ? `Please authenticate to register RFID: ${pendingRFID}`
                 : "Enter your administrator credentials"
@@ -185,22 +177,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           </DialogHeader>
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="admin-id">Administrator ID</Label>
+              <Label htmlFor="admin-id" className="text-gray-700">Administrator ID</Label>
               <Input
                 id="admin-id"
                 value={adminId}
                 onChange={(e) => setAdminId(e.target.value)}
                 placeholder="Enter administrator ID"
+                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-gray-700">Password</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="Enter administrator password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <div className="flex gap-3 pt-4">
@@ -208,13 +202,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 type="button" 
                 variant="outline" 
                 onClick={() => setShowPasswordDialog(false)}
-                className="flex-1"
+                className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                className="flex-1"
+                className="flex-1 bg-blue-800 hover:bg-blue-900 text-white"
                 disabled={isLoading}
               >
                 {isLoading ? (
