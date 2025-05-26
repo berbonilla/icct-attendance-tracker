@@ -1,6 +1,7 @@
 
 import { database } from '@/config/firebase';
 import { ref, set, get } from 'firebase/database';
+import { checkStudentAbsences } from './absenceTrackingService';
 
 interface ScheduleSlot {
   timeSlot: string;
@@ -225,6 +226,12 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     await set(attendanceRef, updatedDayAttendance);
 
     console.log('✅ Attendance record saved successfully');
+
+    // Check for absence alerts after recording attendance
+    if (attendanceStatus === 'absent') {
+      console.log('🚨 Student marked absent - checking for absence alert threshold');
+      await checkStudentAbsences(studentId);
+    }
 
     // Mark the scanned RFID as processed
     const student = await getStudentByRFID(studentId);

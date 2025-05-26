@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LandingPage from '@/components/LandingPage';
 import StudentDashboard from '@/components/StudentDashboard';
 import AdminDashboard from '@/components/AdminDashboard';
 import StudentManagement from '@/components/StudentManagement';
+import { initializeAbsenceTracking } from '@/services/absenceTrackingService';
 
 const Index = () => {
   const { user, userType, autoAdminMode, pendingRFID, setPendingRFID, setAutoAdminMode } = useAuth();
@@ -15,6 +15,18 @@ const Index = () => {
     rfidProcessing: false,
     cacheCleared: false
   });
+
+  // Initialize absence tracking system
+  useEffect(() => {
+    console.log('🔍 Initializing absence tracking system...');
+    const cleanupAbsenceTracking = initializeAbsenceTracking();
+    
+    // Cleanup function
+    return () => {
+      console.log('🧹 Cleaning up absence tracking system...');
+      cleanupAbsenceTracking();
+    };
+  }, []);
 
   // System validation checks on mount
   useEffect(() => {

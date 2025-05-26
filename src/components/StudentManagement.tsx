@@ -31,6 +31,8 @@ interface Student {
   course: string;
   year: string;
   section: string;
+  parentName: string;
+  parentEmail: string;
 }
 
 interface StudentWithSchedule extends Student {
@@ -62,7 +64,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     email: '',
     course: '',
     year: '',
-    section: ''
+    section: '',
+    parentName: '',
+    parentEmail: ''
   });
 
   useEffect(() => {
@@ -114,7 +118,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         email: '',
         course: '',
         year: '',
-        section: ''
+        section: '',
+        parentName: '',
+        parentEmail: ''
       });
       setIsAddDialogOpen(true);
     }
@@ -140,7 +146,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       email: '',
       course: '',
       year: '',
-      section: ''
+      section: '',
+      parentName: '',
+      parentEmail: ''
     });
     setNewStudentId('');
     setIsAddDialogOpen(true);
@@ -150,10 +158,11 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     console.log('Validating form data:', formData);
     
     if (!formData.name?.trim() || !formData.rfid?.trim() || !formData.email?.trim() || 
-        !formData.course?.trim() || !formData.year?.trim() || !formData.section?.trim()) {
+        !formData.course?.trim() || !formData.year?.trim() || !formData.section?.trim() ||
+        !formData.parentName?.trim() || !formData.parentEmail?.trim()) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields including parent information",
         variant: "destructive"
       });
       console.log('Validation failed: missing required fields');
@@ -177,6 +186,16 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         variant: "destructive"
       });
       console.log('Validation failed: invalid email format');
+      return false;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.parentEmail)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid parent email address",
+        variant: "destructive"
+      });
+      console.log('Validation failed: invalid parent email format');
       return false;
     }
 
@@ -262,7 +281,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         email: studentData.email.trim(),
         course: studentData.course.trim(),
         year: studentData.year.trim(),
-        section: studentData.section.trim()
+        section: studentData.section.trim(),
+        parentName: studentData.parentName.trim(),
+        parentEmail: studentData.parentEmail.trim()
       };
       
       console.log('Validated student data:', validatedData);
@@ -344,7 +365,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       email: formData.email.trim(),
       course: formData.course.trim(),
       year: formData.year.trim(),
-      section: formData.section.trim()
+      section: formData.section.trim(),
+      parentName: formData.parentName.trim(),
+      parentEmail: formData.parentEmail.trim()
     };
 
     console.log('Processing save with data:', studentData);
@@ -484,7 +507,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       email: '',
       course: '',
       year: '',
-      section: ''
+      section: '',
+      parentName: '',
+      parentEmail: ''
     });
     setSelectedStudent(null);
     console.log('Form reset');
@@ -614,6 +639,11 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 <p className="text-sm text-gray-dark">Email:</p>
                 <p className="text-sm">{student.email}</p>
               </div>
+              <div>
+                <p className="text-sm text-gray-dark">Parent:</p>
+                <p className="text-sm">{student.parentName}</p>
+                <p className="text-xs text-gray-500">{student.parentEmail}</p>
+              </div>
               {schedules[studentId] && (
                 <div>
                   <p className="text-sm text-gray-dark">Schedule:</p>
@@ -660,7 +690,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
               }
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-96 overflow-y-auto">
             <div className="space-y-2">
               <Label htmlFor="add-name">Full Name *</Label>
               <Input
@@ -724,6 +754,25 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-parent-name">Parent Name *</Label>
+              <Input
+                id="add-parent-name"
+                value={formData.parentName}
+                onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                placeholder="Enter parent's full name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-parent-email">Parent Email *</Label>
+              <Input
+                id="add-parent-email"
+                type="email"
+                value={formData.parentEmail}
+                onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                placeholder="Enter parent's email address"
+              />
+            </div>
             <div className="flex space-x-2 pt-4">
               <Button
                 variant="outline"
@@ -757,7 +806,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
             <DialogTitle className="text-dark-blue">Edit Student</DialogTitle>
             <DialogDescription>Update student information</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-96 overflow-y-auto">
             <div className="space-y-2">
               <Label htmlFor="edit-name">Full Name</Label>
               <Input
@@ -808,6 +857,23 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                   onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-parent-name">Parent Name</Label>
+              <Input
+                id="edit-parent-name"
+                value={formData.parentName}
+                onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-parent-email">Parent Email</Label>
+              <Input
+                id="edit-parent-email"
+                type="email"
+                value={formData.parentEmail}
+                onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+              />
             </div>
             <div className="flex space-x-2 pt-4">
               <Button
