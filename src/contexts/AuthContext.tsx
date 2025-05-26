@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { database } from '@/config/firebase';
+import { ref, onValue, off } from 'firebase/database';
 
 // Type definitions for the database structure
 interface ScannedID {
@@ -62,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingRFID, setPendingRFID] = useState<string | null>(null);
   const [autoAdminMode, setAutoAdminMode] = useState(false);
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
+  const [databaseData, setDatabaseData] = useState<DatabaseData | null>(null);
 
   // System reset function to clear all states
   const systemReset = () => {
@@ -82,106 +85,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('✅ System Reset: All states cleared');
   };
 
-  // Initialize system on mount - clear cache and reset
+  // Initialize Firebase connection and listen to database changes
   useEffect(() => {
-    console.log('🚀 Application Starting: Performing initial system reset');
+    console.log('🚀 Application Starting: Connecting to Firebase Database');
+    console.log('🔗 Firebase URL:', 'https://icct-rfid-system-default-rtdb.asia-southeast1.firebasedatabase.app/');
+    
     systemReset();
     
-    // Log system initialization
-    console.log('📊 System Status Check:');
-    console.log('- Cache cleared:', !localStorage.getItem('icct_user'));
-    console.log('- States reset:', !user && !userType && !pendingRFID && !autoAdminMode);
-    console.log('- Ready for fresh start');
+    // Set up real-time listener for the entire database
+    const dbRef = ref(database);
+    
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      console.log('🔥 Firebase Database Updated:', data);
+      
+      if (data) {
+        setDatabaseData(data);
+        console.log('📊 Database State:', {
+          scannedIDs: Object.keys(data.ScannedIDs || {}).length,
+          students: Object.keys(data.students || {}).length,
+          adminUsers: Object.keys(data.adminUsers || {}).length
+        });
+      } else {
+        console.log('📊 Database is empty');
+        setDatabaseData(null);
+      }
+    }, (error) => {
+      console.error('❌ Firebase Database Error:', error);
+    });
+
+    return () => {
+      off(dbRef);
+      unsubscribe();
+    };
   }, []);
 
-  // Monitor ScannedIDs for automatic RFID detection every 5 seconds
+  // Monitor ScannedIDs for automatic RFID detection
   useEffect(() => {
-    const checkScannedRFIDs = async () => {
-      try {
-        console.log('🔍 RFID Scanner: Checking for new scans...');
-        const dummyDataModule = await import('../data/updatedDummyData.json');
-        const dummyData = dummyDataModule.default as DatabaseData;
-        
-        console.log('📋 Database State:', {
-          scannedIDs: Object.keys(dummyData.ScannedIDs || {}).length,
-          students: Object.keys(dummyData.students || {}).length,
-          adminUsers: Object.keys(dummyData.adminUsers || {}).length
-        });
-        
-        // Only proceed if ScannedIDs exists and has unprocessed content
-        if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
-          console.log('🆔 Found ScannedIDs:', dummyData.ScannedIDs);
-          
-          // Find the earliest unprocessed RFID that hasn't been processed locally
-          const unprocessedRFIDs = Object.entries(dummyData.ScannedIDs)
-            .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
-            .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+    if (!databaseData || !databaseData.ScannedIDs) {
+      console.log('💤 No ScannedIDs to process');
+      return;
+    }
 
-          console.log('🔍 Unprocessed RFIDs found:', unprocessedRFIDs.length);
+    console.log('🔍 RFID Scanner: Processing ScannedIDs from Firebase...');
+    console.log('🆔 Found ScannedIDs:', databaseData.ScannedIDs);
+    
+    // Find the earliest unprocessed RFID that hasn't been processed locally
+    const unprocessedRFIDs = Object.entries(databaseData.ScannedIDs)
+      .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
+      .sort(([, a], [, b]) => a.timestamp - b.timestamp);
 
-          if (unprocessedRFIDs.length > 0) {
-            const [earliestRFID, data] = unprocessedRFIDs[0];
-            console.log('⚡ Processing RFID:', earliestRFID, 'at timestamp:', data.timestamp);
-            
-            // Mark as processed locally to avoid reprocessing
-            setProcessedRFIDs(prev => new Set([...prev, earliestRFID]));
-            
-            // Check if RFID is registered in students database
-            const isRegistered = dummyData.students && Object.values(dummyData.students).some(
-              student => student.rfid === earliestRFID
-            );
-            
-            console.log('🔐 RFID Status:', isRegistered ? 'REGISTERED' : 'UNREGISTERED');
-            console.log('🔍 Checking RFID against students:', {
-              scannedRFID: earliestRFID,
-              studentRFIDs: Object.values(dummyData.students).map(s => s.rfid),
-              isRegistered
-            });
-            
-            if (!isRegistered) {
-              console.log('🚨 Unregistered RFID detected - Triggering admin authentication');
-              setPendingRFID(earliestRFID);
-              setAutoAdminMode(true);
-            } else {
-              console.log('✅ RFID is registered - Processing attendance');
-              // TODO: Add attendance processing logic here
-            }
-          }
-        } else {
-          console.log('💤 No ScannedIDs to process');
-          // Reset admin mode if no pending RFIDs and no scanned IDs
-          if (autoAdminMode && !pendingRFID) {
-            console.log('🔄 Resetting admin mode - no pending operations');
-            setAutoAdminMode(false);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error checking scanned RFIDs:', error);
+    console.log('🔍 Unprocessed RFIDs found:', unprocessedRFIDs.length);
+
+    if (unprocessedRFIDs.length > 0) {
+      const [earliestRFID, data] = unprocessedRFIDs[0];
+      console.log('⚡ Processing RFID:', earliestRFID, 'at timestamp:', data.timestamp);
+      
+      // Mark as processed locally to avoid reprocessing
+      setProcessedRFIDs(prev => new Set([...prev, earliestRFID]));
+      
+      // Check if RFID is registered in students database
+      const isRegistered = databaseData.students && Object.values(databaseData.students).some(
+        student => student.rfid === earliestRFID
+      );
+      
+      console.log('🔐 RFID Status:', isRegistered ? 'REGISTERED' : 'UNREGISTERED');
+      console.log('🔍 Checking RFID against students:', {
+        scannedRFID: earliestRFID,
+        studentRFIDs: Object.values(databaseData.students || {}).map(s => s.rfid),
+        isRegistered
+      });
+      
+      if (!isRegistered) {
+        console.log('🚨 Unregistered RFID detected - Triggering admin authentication');
+        setPendingRFID(earliestRFID);
+        setAutoAdminMode(true);
+      } else {
+        console.log('✅ RFID is registered - Processing attendance');
+        // TODO: Add attendance processing logic here
       }
-    };
-
-    // Initial check after 1 second delay
-    const initialTimeout = setTimeout(checkScannedRFIDs, 1000);
-    
-    // Check for new RFIDs every 5 seconds
-    const interval = setInterval(checkScannedRFIDs, 5000);
-    
-    return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(interval);
-    };
-  }, [processedRFIDs, autoAdminMode, pendingRFID]);
+    }
+  }, [databaseData, processedRFIDs]);
 
   const loadUserData = async (id: string, password?: string) => {
     setIsLoading(true);
     console.log('🔐 Authentication attempt for:', id);
     
     try {
-      const dummyDataModule = await import('../data/updatedDummyData.json');
-      const dummyData = dummyDataModule.default as DatabaseData;
+      if (!databaseData) {
+        console.log('❌ Database not loaded yet');
+        return false;
+      }
       
       if (id.startsWith('TA')) {
-        const student = dummyData.students[id];
+        const student = databaseData.students && databaseData.students[id];
         if (student) {
           console.log('✅ Student authentication successful');
           setUser({ id, ...student });
@@ -191,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('❌ Student not found');
         }
       } else {
-        const admin = dummyData.adminUsers[id];
+        const admin = databaseData.adminUsers && databaseData.adminUsers[id];
         if (admin && password === admin.password) {
           console.log('✅ Admin authentication successful');
           setUser({ id, ...admin });

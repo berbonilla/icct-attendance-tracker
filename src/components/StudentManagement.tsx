@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Edit, Trash, Search, Settings } from 'lucide-react';
 import ScheduleInput from './ScheduleInput';
+import { database } from '@/config/firebase';
+import { ref, onValue, set, remove, off } from 'firebase/database';
 
 interface Student {
   name: string;
@@ -39,6 +42,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [newStudentId, setNewStudentId] = useState<string>('');
+  const [isConnected, setIsConnected] = useState(false);
   const [formData, setFormData] = useState<Student & { id?: string }>({
     name: '',
     rfid: '',
@@ -49,30 +53,42 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   });
 
   useEffect(() => {
-    const loadStudents = async () => {
-      try {
-        // Load from the actual database file (updatedDummyData.json)
-        const dummyDataModule = await import('../data/updatedDummyData.json');
-        const dummyData = dummyDataModule.default;
+    console.log('🔗 StudentManagement: Connecting to Firebase Database');
+    
+    // Set up real-time listener for the entire database
+    const dbRef = ref(database);
+    
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      const databaseData = snapshot.val();
+      
+      console.log('🔥 StudentManagement: Firebase data received:', databaseData);
+      
+      if (databaseData) {
+        setIsConnected(true);
+        setStudents(databaseData.students || {});
+        setSchedules(databaseData.schedules || {});
         
-        console.log('Loading student management data from updatedDummyData.json...', dummyData);
-        
-        setStudents(dummyData.students || {});
-        setSchedules(dummyData.schedules || {});
-        
-        console.log('Student management data loaded:', {
-          studentsCount: Object.keys(dummyData.students || {}).length,
-          schedulesCount: Object.keys(dummyData.schedules || {}).length
+        console.log('Student management data loaded from Firebase:', {
+          studentsCount: Object.keys(databaseData.students || {}).length,
+          schedulesCount: Object.keys(databaseData.schedules || {}).length
         });
-      } catch (error) {
-        console.error('Error loading students:', error);
-        // Fallback to empty data if loading fails
+      } else {
+        console.log('Firebase database is empty');
+        setIsConnected(true);
         setStudents({});
         setSchedules({});
       }
-    };
+    }, (error) => {
+      console.error('❌ StudentManagement: Firebase error:', error);
+      setIsConnected(false);
+      setStudents({});
+      setSchedules({});
+    });
 
-    loadStudents();
+    return () => {
+      off(dbRef);
+      unsubscribe();
+    };
   }, []);
 
   // Auto-open registration dialog if there's a pending RFID
@@ -175,49 +191,41 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
 
   const deleteScannedRFID = async (rfid: string) => {
     try {
-      console.log('Attempting to delete scanned RFID:', rfid);
-      // In a real implementation, this would make an API call to delete the RFID
-      // For now, we'll just log it and rely on the backend to handle deletion
-      console.log('RFID deletion request sent for:', rfid);
+      console.log('Deleting scanned RFID from Firebase:', rfid);
+      const scannedIDRef = ref(database, `ScannedIDs/${rfid}`);
+      await remove(scannedIDRef);
+      console.log('✅ RFID deleted from Firebase ScannedIDs:', rfid);
     } catch (error) {
-      console.error('Error deleting scanned RFID:', error);
+      console.error('❌ Error deleting scanned RFID from Firebase:', error);
     }
   };
 
   const saveStudentData = async (studentId: string, studentData: Student) => {
     try {
-      console.log('Saving student data:', { studentId, studentData });
+      console.log('Saving student data to Firebase:', { studentId, studentData });
       
-      // Update local state
-      setStudents(prev => ({
-        ...prev,
-        [studentId]: studentData
-      }));
+      const studentRef = ref(database, `students/${studentId}`);
+      await set(studentRef, studentData);
       
-      // In a real implementation, this would make an API call to save the data
-      console.log('Student data saved successfully:', studentId);
+      console.log('✅ Student data saved to Firebase:', studentId);
       return true;
     } catch (error) {
-      console.error('Error saving student data:', error);
+      console.error('❌ Error saving student data to Firebase:', error);
       return false;
     }
   };
 
   const saveScheduleData = async (studentId: string, schedule: Record<string, string[]>) => {
     try {
-      console.log('Saving schedule data:', { studentId, schedule });
+      console.log('Saving schedule data to Firebase:', { studentId, schedule });
       
-      // Update local state
-      setSchedules(prev => ({
-        ...prev,
-        [studentId]: schedule
-      }));
+      const scheduleRef = ref(database, `schedules/${studentId}`);
+      await set(scheduleRef, schedule);
       
-      // In a real implementation, this would make an API call to save the schedule
-      console.log('Schedule data saved successfully:', studentId);
+      console.log('✅ Schedule data saved to Firebase:', studentId);
       return true;
     } catch (error) {
-      console.error('Error saving schedule data:', error);
+      console.error('❌ Error saving schedule data to Firebase:', error);
       return false;
     }
   };
@@ -330,28 +338,22 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   const handleDelete = async (studentId: string) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        // Remove from local state
-        setStudents(prev => {
-          const newStudents = { ...prev };
-          delete newStudents[studentId];
-          return newStudents;
-        });
+        // Remove from Firebase
+        const studentRef = ref(database, `students/${studentId}`);
+        await remove(studentRef);
         
         // Also remove schedule
-        setSchedules(prev => {
-          const newSchedules = { ...prev };
-          delete newSchedules[studentId];
-          return newSchedules;
-        });
+        const scheduleRef = ref(database, `schedules/${studentId}`);
+        await remove(scheduleRef);
         
-        console.log('Student deleted:', studentId);
+        console.log('✅ Student deleted from Firebase:', studentId);
         
         toast({
           title: "Success",
           description: "Student deleted successfully"
         });
       } catch (error) {
-        console.error('Error deleting student:', error);
+        console.error('❌ Error deleting student from Firebase:', error);
         toast({
           title: "Error",
           description: "Failed to delete student",
@@ -384,8 +386,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     console.log('- Students count:', Object.keys(students).length);
     console.log('- Schedules count:', Object.keys(schedules).length);
     console.log('- Pending RFID:', pendingRFID);
+    console.log('- Firebase connected:', isConnected);
     console.log('- Auto admin mode active:', !!pendingRFID);
-  }, [students, schedules, pendingRFID]);
+  }, [students, schedules, pendingRFID, isConnected]);
 
   return (
     <div className="space-y-6">
@@ -401,10 +404,16 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                   RFID Registration Mode
                 </Badge>
               )}
+              {!isConnected && (
+                <Badge className="ml-2 bg-red text-white">
+                  Firebase Disconnected
+                </Badge>
+              )}
             </span>
             <Button 
               onClick={handleAdd}
               className="bg-dark-blue hover:bg-light-blue text-white"
+              disabled={!isConnected}
             >
               Add Student
             </Button>
@@ -412,7 +421,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
           <CardDescription>
             {pendingRFID 
               ? `Ready to register RFID: ${formatRFIDDisplay(pendingRFID)}`
-              : "Manage student information and RFID data"
+              : isConnected 
+                ? "Manage student information and RFID data (Connected to Firebase)"
+                : "Connecting to Firebase database..."
             }
           </CardDescription>
         </CardHeader>
@@ -424,6 +435,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-md"
+              disabled={!isConnected}
             />
           </div>
         </CardContent>
@@ -445,6 +457,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                     variant="outline"
                     onClick={() => handleEdit(studentId)}
                     className="text-light-blue border-light-blue hover:bg-light-blue hover:text-white"
+                    disabled={!isConnected}
                   >
                     <Edit className="w-3 h-3" />
                   </Button>
@@ -453,6 +466,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                     variant="outline"
                     onClick={() => handleDelete(studentId)}
                     className="text-red border-red hover:bg-red hover:text-white"
+                    disabled={!isConnected}
                   >
                     <Trash className="w-3 h-3" />
                   </Button>
@@ -485,12 +499,14 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         <Card>
           <CardContent className="text-center py-8">
             <p className="text-gray-dark">
-              {Object.keys(students).length === 0 
-                ? "No students registered in the system." 
-                : "No students found matching your search criteria."
+              {!isConnected 
+                ? "Connecting to Firebase database..."
+                : Object.keys(students).length === 0 
+                  ? "No students registered in the system." 
+                  : "No students found matching your search criteria."
               }
             </p>
-            {Object.keys(students).length === 0 && (
+            {isConnected && Object.keys(students).length === 0 && (
               <p className="text-gray-500 text-sm mt-2">Start by scanning an RFID card or adding a student manually</p>
             )}
           </CardContent>
@@ -591,6 +607,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
               <Button
                 onClick={handleSave}
                 className="flex-1 bg-dark-blue hover:bg-light-blue text-white"
+                disabled={!isConnected}
               >
                 {pendingRFID ? 'Register & Set Schedule' : 'Add & Set Schedule'}
               </Button>
@@ -672,6 +689,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
               <Button
                 onClick={handleSave}
                 className="flex-1 bg-dark-blue hover:bg-light-blue text-white"
+                disabled={!isConnected}
               >
                 Save Changes
               </Button>

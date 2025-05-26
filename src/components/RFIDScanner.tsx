@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Scan, UserPlus, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { database } from '@/config/firebase';
+import { ref, onValue, set, off } from 'firebase/database';
 
 interface RFIDScannerProps {
   onRegisterRFID: (rfidId: string) => void;
@@ -41,34 +43,41 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
   const [scannerStatus, setScannerStatus] = useState<'idle' | 'scanning' | 'processing'>('idle');
   const [availableRFIDs, setAvailableRFIDs] = useState<string[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
   const { setAutoAdminMode, setPendingRFID } = useAuth();
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    const loadData = async () => {
-      setScannerStatus('scanning');
-      try {
-        const dummyDataModule = await import('../data/updatedDummyData.json');
-        const dummyData = dummyDataModule.default as DatabaseData;
-        setStudents(dummyData.students || {});
+    console.log('🔗 RFIDScanner: Connecting to Firebase Database');
+    setScannerStatus('scanning');
+    
+    // Set up real-time listener for the entire database
+    const dbRef = ref(database);
+    
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      const databaseData = snapshot.val() as DatabaseData | null;
+      
+      console.log('🔥 RFIDScanner: Firebase data received:', databaseData);
+      
+      if (databaseData) {
+        setIsConnected(true);
+        setStudents(databaseData.students || {});
         
         // Extract available RFIDs from student database for simulation
-        const studentRFIDs = Object.values(dummyData.students || {})
+        const studentRFIDs = Object.values(databaseData.students || {})
           .map(student => student.rfid)
           .filter(rfid => rfid) as string[];
         
         setAvailableRFIDs(studentRFIDs);
         
-        console.log('Scanner: Loading scanned RFIDs...', dummyData.ScannedIDs);
-        console.log('Scanner: Loaded students:', Object.keys(dummyData.students || {}).length, 'students');
-        console.log('Scanner: Available RFIDs from database:', studentRFIDs);
+        console.log('Scanner: Available RFIDs from Firebase:', studentRFIDs);
         
         // Process scanned RFIDs with timestamps
-        if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
-          setScannedRFIDs(dummyData.ScannedIDs);
+        if (databaseData.ScannedIDs && Object.keys(databaseData.ScannedIDs).length > 0) {
+          setScannedRFIDs(databaseData.ScannedIDs);
           
           // Find the earliest unprocessed RFID
-          const unprocessedRFIDs = Object.entries(dummyData.ScannedIDs)
+          const unprocessedRFIDs = Object.entries(databaseData.ScannedIDs)
             .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
             .sort(([, a], [, b]) => a.timestamp - b.timestamp);
 
@@ -86,7 +95,7 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
             setProcessedRFIDs(prev => new Set([...prev, earliestRFID]));
             
             // Check if RFID is registered in students database
-            const studentEntries = Object.values(dummyData.students || {});
+            const studentEntries = Object.values(databaseData.students || {});
             const isRegistered = studentEntries.length > 0 && studentEntries.some(
               student => student.rfid === earliestRFID
             );
@@ -110,24 +119,30 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
             setScannerStatus('idle');
           }
         } else {
-          console.log('Scanner: No ScannedIDs found');
+          console.log('Scanner: No ScannedIDs found in Firebase');
           setScannerStatus('idle');
           setScannedRFIDs({});
           setCurrentRFID('');
         }
-      } catch (error) {
-        console.error('Scanner: Error loading data:', error);
+      } else {
+        console.log('Scanner: Firebase database is empty');
+        setIsConnected(true);
         setScannerStatus('idle');
+        setStudents({});
+        setScannedRFIDs({});
+        setCurrentRFID('');
+        setAvailableRFIDs([]);
       }
+    }, (error) => {
+      console.error('❌ RFIDScanner: Firebase error:', error);
+      setIsConnected(false);
+      setScannerStatus('idle');
+    });
+    
+    return () => {
+      off(dbRef);
+      unsubscribe();
     };
-
-    // Initial load
-    loadData();
-    
-    // Scan for new RFIDs every 5 seconds
-    const interval = setInterval(loadData, 5000);
-    
-    return () => clearInterval(interval);
   }, [setAutoAdminMode, setPendingRFID, processedRFIDs]);
 
   const isRFIDRegistered = (rfidId: string) => {
@@ -158,48 +173,27 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
     ];
     
     if (allPossibleRFIDs.length === 0) {
-      console.log('No RFIDs available for simulation');
-      return;
+      // Create a completely random RFID if no RFIDs available
+      const hex = () => Math.floor(Math.random() * 256).toString(16).toUpperCase().padStart(2, '0');
+      allPossibleRFIDs.push(`${hex()}:${hex()}:${hex()}:${hex()}`);
     }
     
     const randomRFID = allPossibleRFIDs[Math.floor(Math.random() * allPossibleRFIDs.length)];
     const timestamp = Date.now();
     
-    console.log('Simulating RFID scan:', { rfid: randomRFID, timestamp });
+    console.log('Simulating RFID scan to Firebase:', { rfid: randomRFID, timestamp });
     
-    // Update local state immediately for responsive UI
-    const newScannedData: ScannedRFIDData = {
-      timestamp,
-      processed: false
-    };
-    
-    setScannedRFIDs(prev => ({
-      ...prev,
-      [randomRFID]: newScannedData
-    }));
-    setCurrentRFID(randomRFID);
-    setLastScanTime(timestamp);
-    
-    console.log('Simulated scan - Added RFID to scanned list:', randomRFID);
-    console.log('Simulated scan - Current students:', Object.keys(students).length);
-    
-    // Check if RFID is registered
-    const studentEntries = Object.values(students);
-    const isRegistered = studentEntries.length > 0 && studentEntries.some(student => student.rfid === randomRFID);
-    
-    console.log('Simulated scan - Registration check:', { 
-      rfid: randomRFID, 
-      isRegistered,
-      studentCount: studentEntries.length,
-      availableRFIDs: studentEntries.map(s => s.rfid)
-    });
-    
-    if (!isRegistered) {
-      console.log('Simulated scan - Unregistered RFID, triggering admin mode');
-      setPendingRFID(randomRFID);
-      setAutoAdminMode(true);
-    } else {
-      console.log('Simulated scan - RFID is registered');
+    // Write to Firebase ScannedIDs
+    try {
+      const scannedIDRef = ref(database, `ScannedIDs/${randomRFID}`);
+      await set(scannedIDRef, {
+        timestamp,
+        processed: false
+      });
+      
+      console.log('✅ RFID scan written to Firebase:', randomRFID);
+    } catch (error) {
+      console.error('❌ Error writing RFID scan to Firebase:', error);
     }
   };
 
@@ -210,6 +204,10 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   };
 
   const getScannerStatusIcon = () => {
+    if (!isConnected) {
+      return <AlertCircle className="w-4 h-4 text-red animate-pulse" />;
+    }
+    
     switch (scannerStatus) {
       case 'scanning':
         return <Scan className="w-4 h-4 text-blue-500 animate-pulse" />;
@@ -221,13 +219,17 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   };
 
   const getScannerStatusText = () => {
+    if (!isConnected) {
+      return 'Connecting to Firebase...';
+    }
+    
     switch (scannerStatus) {
       case 'scanning':
-        return 'Scanning for new RFIDs...';
+        return 'Monitoring Firebase for RFIDs...';
       case 'processing':
         return 'Processing RFID data...';
       default:
-        return 'Ready to scan';
+        return 'Connected to Firebase';
     }
   };
 
@@ -240,12 +242,12 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
           <div className={`ml-auto flex items-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
             {getScannerStatusIcon()}
             <span className={`font-normal ${isMobile ? 'text-xs' : 'text-sm'}`}>
-              {isMobile ? 'Scanning...' : getScannerStatusText()}
+              {isMobile ? (isConnected ? 'Connected' : 'Connecting...') : getScannerStatusText()}
             </span>
           </div>
         </CardTitle>
         <CardDescription className={isMobile ? 'text-xs' : 'text-sm'}>
-          {isMobile ? 'Scanning for RFIDs' : 'Scanning every 5 seconds for new RFID inputs'}
+          {isMobile ? 'Real-time Firebase monitoring' : 'Real-time monitoring of Firebase database for RFID scans'}
         </CardDescription>
       </CardHeader>
       <CardContent className={`space-y-4 ${isMobile ? 'p-4' : 'p-6'}`}>
@@ -253,7 +255,7 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
         <Button 
           onClick={simulateRFIDScan}
           className={`w-full bg-light-blue hover:bg-dark-blue text-white ${isMobile ? 'h-12 text-base' : ''}`}
-          disabled={availableRFIDs.length === 0}
+          disabled={!isConnected}
         >
           <Scan className={`mr-2 ${isMobile ? 'w-4 h-4' : 'w-4 h-4'}`} />
           {isMobile ? 'Simulate Scan' : 'Simulate RFID Scan'}
@@ -340,7 +342,7 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
               No RFID scanned yet
             </p>
             <p className={`text-gray-500 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
-              {isMobile ? 'Monitoring database' : 'Scanner is monitoring database every 5 seconds'}
+              {isMobile ? 'Monitoring Firebase' : 'Scanner is monitoring Firebase database in real-time'}
             </p>
           </div>
         )}
@@ -352,9 +354,9 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
           </h4>
           <div className={`space-y-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
             <div className="flex justify-between">
-              <span>Database:</span>
-              <Badge variant="outline" className={`text-green-600 ${isMobile ? 'text-xs px-1 py-0.5' : ''}`}>
-                Connected
+              <span>Firebase:</span>
+              <Badge variant="outline" className={`${isConnected ? 'text-green-600' : 'text-red'} ${isMobile ? 'text-xs px-1 py-0.5' : ''}`}>
+                {isConnected ? 'Connected' : 'Disconnected'}
               </Badge>
             </div>
             <div className="flex justify-between">
@@ -378,8 +380,8 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
             {!isMobile && (
               <>
                 <div className="flex justify-between">
-                  <span>Scan Interval:</span>
-                  <Badge variant="outline">5 seconds</Badge>
+                  <span>Monitoring:</span>
+                  <Badge variant="outline">Real-time</Badge>
                 </div>
                 <div className="flex justify-between">
                   <span>Scanner Status:</span>

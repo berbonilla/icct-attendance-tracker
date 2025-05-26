@@ -10,6 +10,8 @@ import { AttendanceData } from '@/types/attendance';
 import { DummyDataStructure, DummyDataStudent } from '@/types/dummyData';
 import StudentManagement from './StudentManagement';
 import { toast } from '@/hooks/use-toast';
+import { database } from '@/config/firebase';
+import { ref, onValue, off } from 'firebase/database';
 
 interface AdminDashboardProps {
   pendingRFID?: string | null;
@@ -25,6 +27,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [students, setStudents] = useState<Record<string, DummyDataStudent>>({});
   const [filter, setFilter] = useState<'week' | 'month' | 'term'>('week');
   const [activeTab, setActiveTab] = useState('attendance');
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     // If there's a pending RFID, automatically switch to student management
@@ -39,31 +42,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [pendingRFID]);
 
   useEffect(() => {
-    const loadAdminData = async () => {
-      try {
-        // Load from the actual database file (updatedDummyData.json)
-        const dummyDataModule = await import('../data/updatedDummyData.json');
-        const dummyData = dummyDataModule.default as DummyDataStructure;
+    console.log('🔗 AdminDashboard: Connecting to Firebase Database');
+    
+    // Set up real-time listener for the entire database
+    const dbRef = ref(database);
+    
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      const databaseData = snapshot.val() as DummyDataStructure | null;
+      
+      console.log('🔥 AdminDashboard: Firebase data received:', databaseData);
+      
+      if (databaseData) {
+        setIsConnected(true);
+        setAttendanceData(databaseData.attendanceRecords || {});
+        setStudents(databaseData.students || {});
         
-        console.log('Loading admin data from updatedDummyData.json...', dummyData);
-        
-        // Set the data from the actual database
-        setAttendanceData(dummyData.attendanceRecords || {});
-        setStudents(dummyData.students || {});
-        
-        console.log('Admin data loaded successfully:', {
-          studentsCount: Object.keys(dummyData.students || {}).length,
-          attendanceRecordsCount: Object.keys(dummyData.attendanceRecords || {}).length
+        console.log('Admin dashboard data loaded from Firebase:', {
+          studentsCount: Object.keys(databaseData.students || {}).length,
+          attendanceRecordsCount: Object.keys(databaseData.attendanceRecords || {}).length
         });
-      } catch (error) {
-        console.error('Error loading admin data:', error);
-        // Fallback to empty data if loading fails
+      } else {
+        console.log('Firebase database is empty');
+        setIsConnected(true);
         setAttendanceData({});
         setStudents({});
       }
-    };
+    }, (error) => {
+      console.error('❌ AdminDashboard: Firebase error:', error);
+      setIsConnected(false);
+      setAttendanceData({});
+      setStudents({});
+    });
 
-    loadAdminData();
+    return () => {
+      off(dbRef);
+      unsubscribe();
+    };
   }, []);
 
   const calculateStats = () => {
@@ -105,7 +119,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">ICCT RFID System</h1>
-            <p className="text-gray-light">Admin Dashboard</p>
+            <p className="text-gray-light">
+              Admin Dashboard {!isConnected && '(Connecting to Firebase...)'}
+            </p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-right">
@@ -124,6 +140,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Connection Status */}
+        {!isConnected && (
+          <Card className="border-yellow-300 bg-yellow-50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                <p className="text-yellow-800">Connecting to Firebase database...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Analytics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -181,6 +209,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={() => setFilter('week')}
             variant={filter === 'week' ? 'default' : 'outline'}
             className={filter === 'week' ? 'bg-dark-blue text-white' : ''}
+            disabled={!isConnected}
           >
             This Week
           </Button>
@@ -188,6 +217,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={() => setFilter('month')}
             variant={filter === 'month' ? 'default' : 'outline'}
             className={filter === 'month' ? 'bg-dark-blue text-white' : ''}
+            disabled={!isConnected}
           >
             This Month
           </Button>
@@ -195,6 +225,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={() => setFilter('term')}
             variant={filter === 'term' ? 'default' : 'outline'}
             className={filter === 'term' ? 'bg-dark-blue text-white' : ''}
+            disabled={!isConnected}
           >
             This Term
           </Button>
@@ -203,19 +234,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Tabs for different admin functions */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="attendance">Attendance Records</TabsTrigger>
-            <TabsTrigger value="students">Student Management</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="attendance" disabled={!isConnected}>Attendance Records</TabsTrigger>
+            <TabsTrigger value="students" disabled={!isConnected}>Student Management</TabsTrigger>
+            <TabsTrigger value="settings" disabled={!isConnected}>Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="attendance">
             <Card>
               <CardHeader>
                 <CardTitle className="text-dark-blue">Attendance Overview</CardTitle>
-                <CardDescription>Student attendance records for {filter}</CardDescription>
+                <CardDescription>
+                  Student attendance records for {filter} 
+                  {isConnected ? ' (Live from Firebase)' : ' (Connecting...)'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {Object.keys(attendanceData).length === 0 ? (
+                {!isConnected ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-dark text-lg">Connecting to Firebase...</p>
+                    <p className="text-gray-500 text-sm mt-2">Please wait while we load the data</p>
+                  </div>
+                ) : Object.keys(attendanceData).length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-dark text-lg">No attendance records found</p>
                     <p className="text-gray-500 text-sm mt-2">Add students to start tracking attendance</p>
@@ -270,14 +309,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Card>
               <CardHeader>
                 <CardTitle className="text-dark-blue">System Settings</CardTitle>
-                <CardDescription>Configure system preferences and alerts</CardDescription>
+                <CardDescription>
+                  Configure system preferences and alerts 
+                  {isConnected ? ' (Connected to Firebase)' : ' (Connecting...)'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="p-4 border border-gray-medium rounded-lg">
                     <h3 className="font-semibold mb-2">Absentee Alerts</h3>
                     <p className="text-sm text-gray-dark mb-3">Configure automatic notifications for student absences</p>
-                    <Button className="bg-dark-blue text-white hover:bg-light-blue">
+                    <Button 
+                      className="bg-dark-blue text-white hover:bg-light-blue"
+                      disabled={!isConnected}
+                    >
                       Configure Alerts
                     </Button>
                   </div>
@@ -286,9 +331,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <h3 className="font-semibold mb-2">Database Management</h3>
                     <p className="text-sm text-gray-dark mb-3">Backup and restore attendance data</p>
                     <div className="flex space-x-2">
-                      <Button variant="outline">Backup Data</Button>
-                      <Button variant="outline">Restore Data</Button>
+                      <Button variant="outline" disabled={!isConnected}>Backup Data</Button>
+                      <Button variant="outline" disabled={!isConnected}>Restore Data</Button>
                     </div>
+                  </div>
+                  
+                  <div className="p-4 border border-gray-medium rounded-lg">
+                    <h3 className="font-semibold mb-2">Firebase Connection</h3>
+                    <p className="text-sm text-gray-dark mb-3">
+                      Database URL: https://icct-rfid-system-default-rtdb.asia-southeast1.firebasedatabase.app/
+                    </p>
+                    <Badge variant="outline" className={isConnected ? 'text-green-600' : 'text-red'}>
+                      {isConnected ? 'Connected' : 'Disconnected'}
+                    </Badge>
                   </div>
                 </div>
               </CardContent>
