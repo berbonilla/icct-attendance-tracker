@@ -28,36 +28,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
   const [pendingRFID, setPendingRFID] = useState<string | null>(null);
   const [autoAdminMode, setAutoAdminMode] = useState(false);
+  const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
 
   // Monitor ScannedIDs for automatic RFID detection
   useEffect(() => {
-    const checkScannedRFID = async () => {
+    const checkScannedRFIDs = async () => {
       try {
         const dummyData = await import('../data/dummyData.json');
-        const scannedRFID = dummyData.ScannedIDs?.RFID;
         
-        if (scannedRFID && scannedRFID.trim() !== '') {
-          console.log('Detected scanned RFID:', scannedRFID);
-          
-          // Check if RFID exists in students
-          const isRegistered = Object.values(dummyData.students).some(
-            student => student.rfid === scannedRFID
-          );
-          
-          if (!isRegistered) {
-            console.log('RFID not registered, triggering admin login');
-            setPendingRFID(scannedRFID);
-            setAutoAdminMode(true);
+        if (dummyData.ScannedIDs) {
+          // Find the earliest unprocessed RFID
+          const unprocessedRFIDs = Object.entries(dummyData.ScannedIDs)
+            .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
+            .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+          if (unprocessedRFIDs.length > 0) {
+            const [earliestRFID, data] = unprocessedRFIDs[0];
+            console.log('Processing earliest unprocessed RFID:', earliestRFID, 'timestamp:', data.timestamp);
+            
+            // Mark as processed locally to avoid reprocessing
+            setProcessedRFIDs(prev => new Set([...prev, earliestRFID]));
+            
+            // Check if RFID is registered in students database
+            const isRegistered = Object.values(dummyData.students).some(
+              student => student.rfid === earliestRFID
+            );
+            
+            if (!isRegistered) {
+              console.log('Unregistered RFID detected, triggering admin mode');
+              setPendingRFID(earliestRFID);
+              setAutoAdminMode(true);
+            } else {
+              console.log('RFID is registered:', earliestRFID);
+            }
           }
         }
       } catch (error) {
-        console.error('Error checking scanned RFID:', error);
+        console.error('Error checking scanned RFIDs:', error);
       }
     };
 
-    const interval = setInterval(checkScannedRFID, 2000);
+    checkScannedRFIDs();
+    
+    // Check for new RFIDs every 1 second
+    const interval = setInterval(checkScannedRFIDs, 1000);
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [processedRFIDs]);
 
   const loadUserData = async (id: string, password?: string) => {
     setIsLoading(true);
@@ -99,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserType(null);
     setPendingRFID(null);
     setAutoAdminMode(false);
+    setProcessedRFIDs(new Set());
   };
 
   useEffect(() => {

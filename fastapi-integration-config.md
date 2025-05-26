@@ -112,6 +112,7 @@ async def scan_rfid(rfid_data: RFIDScanRequest):
             "processed": False
         }
     }
+```
 
 ### 3. Mark RFID as Processed Endpoint
 **PATCH** `/api/rfid/{rfid}/process`
@@ -190,6 +191,10 @@ async def add_student(student_data: StudentCreateRequest):
         schedules_ref = db.reference('schedules')
         schedules_ref.child(student_id).set(student_data.schedule)
     
+    # Mark the RFID as processed
+    scanned_ids_ref = db.reference('ScannedIDs')
+    scanned_ids_ref.child(student_data.rfid).update({'processed': True})
+    
     return {
         "status": "success",
         "message": "Student created successfully",
@@ -198,8 +203,10 @@ async def add_student(student_data: StudentCreateRequest):
             "student": student_data.dict()
         }
     }
+```
 
 # Data models for validation
+```python
 from pydantic import BaseModel, validator
 from typing import Dict, List, Optional
 
@@ -211,7 +218,7 @@ class RFIDScanRequest(BaseModel):
     def validate_rfid_format(cls, v):
         import re
         if not re.match(r'^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$', v):
-            raise ValueError('RFID must be in format XX:XX:XX:XX')
+            raise ValueError('RFID must be in format XX:XX:XX:XX (11 characters including colons)')
         return v.upper()
 
 class StudentCreateRequest(BaseModel):
@@ -227,7 +234,7 @@ class StudentCreateRequest(BaseModel):
     def validate_rfid_format(cls, v):
         import re
         if not re.match(r'^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$', v):
-            raise ValueError('RFID must be in format XX:XX:XX:XX')
+            raise ValueError('RFID must be in format XX:XX:XX:XX (11 characters including colons)')
         return v.upper()
 ```
 
@@ -241,13 +248,18 @@ class StudentCreateRequest(BaseModel):
    - Opens registration dialog with pre-filled RFID
    - After registration, opens schedule input dialog
 5. After successful registration and schedule setup, marks RFID as processed
+6. The scanned RFID is automatically filled in the registration form
 
 ## Security Considerations
 1. Use Firebase service account authentication
 2. Implement rate limiting on RFID scan endpoints
-3. Validate RFID format (XX:XX:XX:XX) before database operations
+3. Validate RFID format (XX:XX:XX:XX with 11 characters) before database operations
 4. Log all scan attempts for audit purposes
 5. Automatically mark old unprocessed RFIDs as processed after 24 hours
 
 ## Testing
 Use the RFIDSimulator component to test the automatic registration flow with test RFIDs like `9B:54:8E:02`.
+
+## RFID Format
+All RFIDs must follow the format: `XX:XX:XX:XX` (11 characters including colons)
+Examples: `9B:54:8E:02`, `BD:31:1B:2A`, `A7:F2:C8:41`
