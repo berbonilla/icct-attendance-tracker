@@ -57,8 +57,34 @@
       }
     },
     "attendanceRecords": {
-      ".read": true,
-      ".write": true
+      ".indexOn": ["status"],
+      "$studentId": {
+        ".validate": "root.child('students').child($studentId).exists()",
+        "$date": {
+          ".validate": "$date.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)",
+          "$classKey": {
+            ".validate": "newData.hasChildren(['status', 'subject', 'timeSlot', 'recordedAt'])",
+            "status": {
+              ".validate": "newData.isString() && (newData.val() === 'present' || newData.val() === 'absent' || newData.val() === 'late')"
+            },
+            "timeIn": {
+              ".validate": "(newData.isString() && newData.val().matches(/^[0-9]{2}:[0-9]{2}$/)) || !newData.exists()"
+            },
+            "timeOut": {
+              ".validate": "(newData.isString() && newData.val().matches(/^[0-9]{2}:[0-9]{2}$/)) || !newData.exists()"
+            },
+            "subject": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "timeSlot": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "recordedAt": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            }
+          }
+        }
+      }
     },
     "schedules": {
       "$studentId": {
