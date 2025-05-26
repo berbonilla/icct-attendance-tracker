@@ -1,3 +1,4 @@
+
 import { database } from '@/config/firebase';
 import { ref, set, get } from 'firebase/database';
 import { checkStudentAbsences } from './absenceTrackingService';
@@ -19,6 +20,8 @@ interface ClassAttendanceRecord {
   subject: string;
   timeSlot: string;
   recordedAt: number;
+  classDate: string;
+  actualScanTime: string;
 }
 
 interface DayAttendanceRecord {
@@ -32,6 +35,14 @@ const parseTime = (timeString: string): number => {
 
 const generateClassKey = (timeSlot: string, subjectId: string): string => {
   return `${timeSlot}_${subjectId}`;
+};
+
+const createClassTimestamp = (dateKey: string, classStartTime: string): number => {
+  // Create a timestamp for when the class actually starts, not when the scan happened
+  const [hours, minutes] = classStartTime.split(':').map(Number);
+  const classDate = new Date(dateKey);
+  classDate.setHours(hours, minutes, 0, 0);
+  return classDate.getTime();
 };
 
 const determineAttendanceStatus = (
@@ -262,13 +273,26 @@ export const processAttendance = async (studentId: string, scannedTime: number):
       return;
     }
 
+    // Get the class start time and create proper timestamp
+    const classStartTime = matchingClass.slot.timeSlot.split('-')[0];
+    const classTimestamp = createClassTimestamp(dateKey, classStartTime);
+
+    console.log('⏰ Class time details:', {
+      classStartTime,
+      classTimestamp,
+      classDate: new Date(classTimestamp).toISOString(),
+      scanDate: new Date(scannedTime).toISOString()
+    });
+
     // Create new attendance record for this specific class
     const classAttendanceRecord: ClassAttendanceRecord = {
       status: matchingClass.status,
-      timeIn: currentTime,
+      timeIn: classStartTime, // Use class start time, not scan time
       subject: matchingClass.subject,
       timeSlot: matchingClass.slot.timeSlot,
-      recordedAt: scannedTime
+      recordedAt: classTimestamp, // Use class timestamp, not scan timestamp
+      classDate: dateKey,
+      actualScanTime: currentTime // Keep track of when they actually scanned
     };
 
     // Merge with existing attendance records for the day
