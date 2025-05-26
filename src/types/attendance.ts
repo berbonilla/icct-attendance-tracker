@@ -1,8 +1,8 @@
-
 export interface AttendanceRecord {
   status: 'present' | 'absent' | 'late';
   timeIn?: string;
   timeOut?: string;
+  subject?: string;
 }
 
 export interface Student {
