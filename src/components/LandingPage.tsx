@@ -83,79 +83,70 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#2B5AA0] to-[#1E3A72] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-dark-blue to-light-blue flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-md space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
+        <div className="text-center space-y-2">
+          <h1 className={`font-bold text-white ${isMobile ? 'text-2xl' : 'text-4xl'}`}>
             ICCT RFID System
           </h1>
-          <p className="text-blue-200 text-lg">
+          <p className={`text-gray-light ${isMobile ? 'text-sm' : 'text-base'}`}>
             Student Attendance Management
           </p>
-          
           {pendingRFID && (
-            <div className="mt-6 p-4 bg-blue-700/50 border border-blue-600 rounded-lg backdrop-blur-sm">
-              <p className="text-sm text-blue-100">
-                RFID Card Detected: {pendingRFID}
-              </p>
-            </div>
+            <p className={`text-yellow-300 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              Unregistered RFID detected: {pendingRFID}
+            </p>
           )}
         </div>
 
-        {/* Access Card */}
-        <Card className="shadow-2xl border-0 bg-white rounded-lg">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl text-white bg-[#4A90E2] py-2 px-6 rounded-md inline-block mx-auto font-semibold">
-              Access System
+        {/* Main Login Card */}
+        <Card className="bg-white shadow-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className={`text-dark-blue ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+              {autoAdminMode ? 'Admin Authentication Required' : 'Access System'}
             </CardTitle>
-            <CardDescription className="text-[#4A90E2] font-medium mt-3 text-sm">
-              Enter your Student ID (TA202200XXX) or Admin ID
+            <CardDescription className={isMobile ? 'text-sm' : 'text-base'}>
+              {autoAdminMode 
+                ? 'Please login as admin to register the new RFID'
+                : 'Enter your Student ID (TA202200XXX) or Admin ID'
+              }
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-0 px-8 pb-8">
+          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
             {!autoAdminMode && (
-              <form onSubmit={handleIdSubmit} className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="id" className="text-gray-800 font-medium text-sm">ID Number</Label>
+              <form onSubmit={handleIdSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="id" className="text-dark-blue">ID Number</Label>
                   <Input
                     id="id"
                     type="text"
                     placeholder="Enter Student ID or Admin ID"
                     value={idInput}
                     onChange={(e) => setIdInput(e.target.value)}
-                    className="h-12 border-gray-300 rounded-md focus:border-[#4A90E2] focus:ring-[#4A90E2] text-gray-700"
+                    className={`border-gray-medium focus:border-light-blue ${isMobile ? 'h-12 text-base' : ''}`}
                   />
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full h-12 bg-[#1E3A72] hover:bg-[#2B5AA0] text-white font-medium text-sm rounded-md"
+                  className={`w-full bg-dark-blue hover:bg-light-blue text-white ${isMobile ? 'h-12 text-base' : ''}`}
                   disabled={isLoading}
                 >
-                  {isLoading ? (
-                    <div className="flex items-center">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                      Access System
-                    </div>
-                  ) : (
-                    'Access System'
-                  )}
+                  {isLoading ? 'Accessing...' : 'Access System'}
                 </Button>
               </form>
             )}
             
             {autoAdminMode && (
-              <div className="text-center space-y-6">
-                <div className="p-6 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-blue-800 font-medium">
-                    Unregistered RFID detected. Administrator access required.
-                  </p>
-                </div>
+              <div className="text-center">
+                <p className={`text-gray-600 mb-4 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                  An unregistered RFID was detected. Admin login required to register new student.
+                </p>
                 <Button 
                   onClick={() => setShowPasswordDialog(true)}
-                  className="w-full h-12 bg-[#1E3A72] hover:bg-[#2B5AA0] text-white font-medium text-sm rounded-md"
+                  className={`w-full bg-dark-blue hover:bg-light-blue text-white ${isMobile ? 'h-12 text-base' : ''}`}
                 >
-                  Administrator Login
+                  Admin Login
                 </Button>
               </div>
             )}
@@ -165,60 +156,55 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
       {/* Admin Password Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="sm:max-w-md bg-white">
+        <DialogContent className={`bg-white ${isMobile ? 'w-[95vw] max-w-sm' : 'max-w-lg'}`}>
           <DialogHeader>
-            <DialogTitle className="text-[#1E3A72]">Administrator Authentication</DialogTitle>
-            <DialogDescription className="text-[#4A90E2]">
+            <DialogTitle className={`text-dark-blue ${isMobile ? 'text-lg' : 'text-xl'}`}>
+              Admin Authentication
+            </DialogTitle>
+            <DialogDescription className={isMobile ? 'text-sm' : 'text-base'}>
               {pendingRFID 
-                ? `Please authenticate to register RFID: ${pendingRFID}`
-                : "Enter your administrator credentials"
+                ? `Please enter admin credentials to register RFID: ${pendingRFID}`
+                : "Please enter your password to access the admin dashboard"
               }
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="admin-id" className="text-gray-700">Administrator ID</Label>
+              <Label htmlFor="admin-id" className="text-dark-blue">Admin ID</Label>
               <Input
                 id="admin-id"
                 value={adminId}
                 onChange={(e) => setAdminId(e.target.value)}
-                placeholder="Enter administrator ID"
-                className="border-gray-300 focus:border-[#4A90E2] focus:ring-[#4A90E2]"
+                placeholder="Enter admin ID"
+                className={`border-gray-medium focus:border-light-blue ${isMobile ? 'h-12 text-base' : ''}`}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-700">Password</Label>
+              <Label htmlFor="password" className="text-dark-blue">Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter administrator password"
+                placeholder="Enter admin password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="border-gray-300 focus:border-[#4A90E2] focus:ring-[#4A90E2]"
+                className={`border-gray-medium focus:border-light-blue ${isMobile ? 'h-12 text-base' : ''}`}
               />
             </div>
-            <div className="flex gap-3 pt-4">
+            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'space-x-2'}`}>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setShowPasswordDialog(false)}
-                className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                className={`${isMobile ? 'w-full h-12' : 'flex-1'}`}
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                className="flex-1 bg-[#1E3A72] hover:bg-[#2B5AA0] text-white"
+                className={`bg-dark-blue hover:bg-light-blue text-white ${isMobile ? 'w-full h-12' : 'flex-1'}`}
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                    Verifying...
-                  </div>
-                ) : (
-                  'Sign In'
-                )}
+                {isLoading ? 'Verifying...' : 'Login'}
               </Button>
             </div>
           </form>

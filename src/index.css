@@ -5,87 +5,43 @@
 
 @layer base {
   :root {
-    /* School-friendly color palette */
-    --school-navy: #1e3a8a;
-    --school-blue: #3b82f6;
-    --school-light-blue: #93c5fd;
-    --school-green: #059669;
-    --school-light-green: #86efac;
-    --school-gold: #f59e0b;
-    --school-red: #dc2626;
-    --school-gray: #6b7280;
-    --school-light-gray: #f3f4f6;
-    --school-white: #ffffff;
-
-    /* Legacy color variables for compatibility */
-    --dark-blue: #1e3a8a;
-    --red: #dc2626;
+    --dark-blue: #001a4d;
+    --red: #d62828;
     --white: #ffffff;
-    --light-blue: #3b82f6;
-    --gray-light: #f3f4f6;
-    --gray-medium: #d1d5db;
-    --gray-dark: #6b7280;
+    --light-blue: #4a90e2;
+    --gray-light: #f5f7fa;
+    --gray-medium: #cbd5e1;
+    --gray-dark: #475569;
 
-    /* Shadcn theme variables updated for school theme */
-    --background: 248 250 252;
-    --foreground: 30 58 138;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
-    --card: 255 255 255;
-    --card-foreground: 30 58 138;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 255 255 255;
-    --popover-foreground: 30 58 138;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 30 58 138;
-    --primary-foreground: 248 250 252;
+    --primary: 210 100% 15%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 243 244 246;
-    --secondary-foreground: 30 58 138;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 243 244 246;
-    --muted-foreground: 107 114 128;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 59 130 246;
-    --accent-foreground: 255 255 255;
+    --accent: 207 90% 61%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 220 38 38;
-    --destructive-foreground: 248 250 252;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 209 213 219;
-    --input: 209 213 219;
-    --ring: 59 130 246;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
 
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    --background: 30 58 138;
-    --foreground: 248 250 252;
-
-    --card: 30 58 138;
-    --card-foreground: 248 250 252;
-
-    --popover: 30 58 138;
-    --popover-foreground: 248 250 252;
-
-    --primary: 59 130 246;
-    --primary-foreground: 30 58 138;
-
-    --secondary: 51 65 85;
-    --secondary-foreground: 248 250 252;
-
-    --muted: 51 65 85;
-    --muted-foreground: 148 163 184;
-
-    --accent: 51 65 85;
-    --accent-foreground: 248 250 252;
-
-    --destructive: 127 29 29;
-    --destructive-foreground: 248 250 252;
-
-    --border: 51 65 85;
-    --input: 51 65 85;
-    --ring: 147 197 253;
+    --radius: 0.5rem;
   }
 }
 
@@ -96,58 +52,16 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  }
-
-  /* School-friendly typography */
-  h1, h2, h3, h4, h5, h6 {
-    @apply text-school-navy font-semibold;
-  }
-
-  /* Educational button styles */
-  .btn-school-primary {
-    @apply bg-school-navy hover:bg-school-blue text-white font-medium px-6 py-3 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg;
-  }
-
-  .btn-school-secondary {
-    @apply bg-school-light-gray hover:bg-gray-200 text-school-navy font-medium px-6 py-3 rounded-xl transition-all duration-200 border border-school-gray;
-  }
-
-  /* School card styling */
-  .card-school {
-    @apply bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200;
-  }
-
-  /* Academic form styling */
-  .form-school {
-    @apply space-y-4;
-  }
-
-  .input-school {
-    @apply border-gray-300 rounded-lg focus:ring-2 focus:ring-school-blue focus:border-transparent px-4 py-3 text-school-navy;
   }
 }
 
-/* Legacy utility classes for compatibility */
-.bg-dark-blue { background-color: var(--school-navy); }
-.bg-red { background-color: var(--school-red); }
-.bg-light-blue { background-color: var(--school-blue); }
-.bg-gray-light { background-color: var(--school-light-gray); }
+.bg-dark-blue { background-color: var(--dark-blue); }
+.bg-red { background-color: var(--red); }
+.bg-light-blue { background-color: var(--light-blue); }
+.bg-gray-light { background-color: var(--gray-light); }
 .bg-gray-medium { background-color: var(--gray-medium); }
-.text-dark-blue { color: var(--school-navy); }
-.text-red { color: var(--school-red); }
-.text-light-blue { color: var(--school-blue); }
-.text-gray-dark { color: var(--school-gray); }
+.text-dark-blue { color: var(--dark-blue); }
+.text-red { color: var(--red); }
+.text-light-blue { color: var(--light-blue); }
+.text-gray-dark { color: var(--gray-dark); }
 .border-gray-medium { border-color: var(--gray-medium); }
-
-/* School-specific utility classes */
-.bg-school-navy { background-color: var(--school-navy); }
-.bg-school-blue { background-color: var(--school-blue); }
-.bg-school-light-blue { background-color: var(--school-light-blue); }
-.bg-school-green { background-color: var(--school-green); }
-.bg-school-gold { background-color: var(--school-gold); }
-.text-school-navy { color: var(--school-navy); }
-.text-school-blue { color: var(--school-blue); }
-.text-school-green { color: var(--school-green); }
-.text-school-gold { color: var(--school-gold); }
-.border-school-blue { border-color: var(--school-blue); }
