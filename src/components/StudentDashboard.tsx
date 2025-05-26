@@ -29,26 +29,34 @@ const StudentDashboard: React.FC = () => {
     timeSlots: Record<string, ScheduleSlot[]>;
   }>({ subjects: {}, timeSlots: {} });
 
+  // Load attendance data from Firebase
   useEffect(() => {
-    const loadStudentData = async () => {
-      try {
-        // Load dummy attendance data (until attendance is moved to Firebase)
-        const dummyData = await import('../data/dummyData.json');
-        const studentAttendance = dummyData.attendanceRecords[user.id as keyof typeof dummyData.attendanceRecords];
-        
-        if (studentAttendance) {
-          const typedAttendance = studentAttendance as Record<string, AttendanceRecord>;
-          setAttendanceData(typedAttendance);
-        }
-      } catch (error) {
-        console.error('Error loading attendance data:', error);
-      }
-    };
+    if (!user?.id) return;
 
-    if (user?.id) {
-      loadStudentData();
-    }
-  }, [user]);
+    console.log('Loading attendance data for student:', user.id);
+    
+    const attendanceRef = ref(database, `attendanceRecords/${user.id}`);
+    
+    const unsubscribe = onValue(attendanceRef, (snapshot) => {
+      const data = snapshot.val();
+      console.log('Attendance data from Firebase:', data);
+      
+      if (data) {
+        setAttendanceData(data);
+        console.log('Processed attendance data:', data);
+      } else {
+        console.log('No attendance data found');
+        setAttendanceData({});
+      }
+    }, (error) => {
+      console.error('Error loading attendance data:', error);
+    });
+
+    return () => {
+      off(attendanceRef);
+      unsubscribe();
+    };
+  }, [user?.id]);
 
   // Load schedule data from Firebase
   useEffect(() => {
@@ -257,7 +265,9 @@ const StudentDashboard: React.FC = () => {
                             })}</p>
                             {record.timeIn && (
                               <p className="text-sm text-gray-dark">
-                                Time In: {record.timeIn} {record.timeOut && `| Time Out: ${record.timeOut}`}
+                                Time In: {record.timeIn} 
+                                {record.timeOut && ` | Time Out: ${record.timeOut}`}
+                                {record.subject && ` | Subject: ${record.subject}`}
                               </p>
                             )}
                           </div>
