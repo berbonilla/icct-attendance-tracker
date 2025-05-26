@@ -43,25 +43,29 @@ const StudentDashboard: React.FC = () => {
 
   // Load attendance data from Firebase
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('❌ No user ID available for loading attendance data');
+      return;
+    }
 
-    console.log('Loading attendance data for student:', user.id);
+    console.log('🔍 Loading attendance data for student:', user.id);
     
     const attendanceRef = ref(database, `attendanceRecords/${user.id}`);
     
     const unsubscribe = onValue(attendanceRef, (snapshot) => {
       const data = snapshot.val();
-      console.log('Attendance data from Firebase:', data);
+      console.log('📊 Raw attendance data from Firebase:', data);
       
       if (data) {
         setAttendanceData(data);
-        console.log('Processed attendance data:', data);
+        console.log('✅ Processed attendance data set:', data);
+        console.log('📈 Number of attendance days:', Object.keys(data).length);
       } else {
-        console.log('No attendance data found');
+        console.log('📭 No attendance data found for student:', user.id);
         setAttendanceData({});
       }
     }, (error) => {
-      console.error('Error loading attendance data:', error);
+      console.error('❌ Error loading attendance data:', error);
     });
 
     return () => {
@@ -72,15 +76,18 @@ const StudentDashboard: React.FC = () => {
 
   // Load schedule data from Firebase
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('❌ No user ID available for loading schedule data');
+      return;
+    }
 
-    console.log('Loading schedule data for student:', user.id);
+    console.log('🔍 Loading schedule data for student:', user.id);
     
     const scheduleRef = ref(database, `schedules/${user.id}`);
     
     const unsubscribe = onValue(scheduleRef, (snapshot) => {
       const data = snapshot.val();
-      console.log('Schedule data from Firebase:', data);
+      console.log('📅 Raw schedule data from Firebase:', data);
       
       if (data) {
         const subjects = data.subjects || {};
@@ -108,13 +115,15 @@ const StudentDashboard: React.FC = () => {
         });
         
         setScheduleData({ subjects, timeSlots });
-        console.log('Processed schedule data:', { subjects, timeSlots });
+        console.log('✅ Processed schedule data:', { subjects, timeSlots });
+        console.log('📚 Number of subjects:', Object.keys(subjects).length);
+        console.log('📆 Schedule days:', Object.keys(timeSlots));
       } else {
-        console.log('No schedule data found');
+        console.log('📭 No schedule data found for student:', user.id);
         setScheduleData({ subjects: {}, timeSlots: {} });
       }
     }, (error) => {
-      console.error('Error loading schedule data:', error);
+      console.error('❌ Error loading schedule data:', error);
     });
 
     return () => {
@@ -140,6 +149,8 @@ const StudentDashboard: React.FC = () => {
   };
 
   const calculateAttendanceStats = () => {
+    console.log('🧮 Calculating attendance stats from data:', attendanceData);
+    
     const allRecords: ClassAttendanceRecord[] = [];
     
     // Flatten all attendance records from all dates
@@ -149,19 +160,24 @@ const StudentDashboard: React.FC = () => {
       });
     });
     
+    console.log('📊 All attendance records found:', allRecords.length);
+    
     const total = allRecords.length;
     const present = allRecords.filter(r => r.status === 'present').length;
     const absent = allRecords.filter(r => r.status === 'absent').length;
     const late = allRecords.filter(r => r.status === 'late').length;
     const presentAndLate = present + late;
     
-    return {
+    const stats = {
       total,
       present: presentAndLate,
       absent,
       late,
       percentage: total > 0 ? Math.round((presentAndLate / total) * 100) : 0
     };
+    
+    console.log('📈 Calculated stats:', stats);
+    return stats;
   };
 
   const getSubjectForSlot = (subjectId: string | null) => {
@@ -170,6 +186,15 @@ const StudentDashboard: React.FC = () => {
   };
 
   const stats = calculateAttendanceStats();
+
+  console.log('🎨 StudentDashboard rendering with:', {
+    user: user?.name,
+    userId: user?.id,
+    attendanceDataKeys: Object.keys(attendanceData),
+    scheduleSubjects: Object.keys(scheduleData.subjects),
+    scheduleTimeSlots: Object.keys(scheduleData.timeSlots),
+    stats
+  });
 
   return (
     <div className="min-h-screen bg-gray-light">
@@ -216,6 +241,22 @@ const StudentDashboard: React.FC = () => {
                 <p className="text-sm text-gray-dark">Year & Section</p>
                 <p className="font-semibold">{user?.year} - {user?.section}</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Debug Information */}
+        <Card className="border-blue-300 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-blue-800">Debug Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p><strong>User ID:</strong> {user?.id || 'Not available'}</p>
+              <p><strong>Attendance Records:</strong> {Object.keys(attendanceData).length} days</p>
+              <p><strong>Schedule Subjects:</strong> {Object.keys(scheduleData.subjects).length} subjects</p>
+              <p><strong>Schedule Days:</strong> {Object.keys(scheduleData.timeSlots).join(', ') || 'None'}</p>
+              <p><strong>Firebase Path:</strong> attendanceRecords/{user?.id}</p>
             </div>
           </CardContent>
         </Card>
@@ -268,7 +309,7 @@ const StudentDashboard: React.FC = () => {
               <CardHeader>
                 <CardTitle className="text-dark-blue flex items-center">
                   <Calendar className="w-5 h-5 mr-2" />
-                  Recent Attendance
+                  Recent Attendance ({Object.keys(attendanceData).length} days found)
                 </CardTitle>
                 <CardDescription>Your attendance records for this period</CardDescription>
               </CardHeader>
@@ -305,7 +346,15 @@ const StudentDashboard: React.FC = () => {
                         </div>
                       ))
                   ) : (
-                    <p className="text-gray-500 text-center py-8">No attendance records found</p>
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 text-lg">No attendance records found</p>
+                      <p className="text-gray-400 text-sm mt-2">
+                        Your attendance will appear here after you scan your RFID card
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        Looking for data at: attendanceRecords/{user?.id}
+                      </p>
+                    </div>
                   )}
                 </div>
               </CardContent>

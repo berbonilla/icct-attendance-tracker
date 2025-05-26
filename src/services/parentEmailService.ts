@@ -1,10 +1,4 @@
-
-
 import { MailSlurp } from 'mailslurp-client';
-
-const mailslurp = new MailSlurp({ 
-  apiKey: "04fee299dfad020de401a28bcdec5d33329c41f092dcb017082e067b719b67b3" 
-});
 
 interface EmailParams {
   parentEmail: string;
@@ -94,21 +88,20 @@ export const sendParentAbsenceAlert = async (params: EmailParams): Promise<boole
     
     const emailContent = generateAbsenceEmailContent(params);
     
-    // Send the email with correct API format - pass SendEmailRequest directly
-    await mailslurp.inboxController.sendEmail({
-      inboxId: inbox.id,
+    // Use the correct MailSlurp API structure
+    const sendEmailRequest = {
       to: [params.parentEmail],
       subject: `🚨 ICCT Attendance Alert - ${params.studentName} (${params.totalAbsences} Absences)`,
       body: emailContent,
       isHTML: true
-    });
+    };
+    
+    await mailslurp.inboxController.sendEmail(inbox.id, sendEmailRequest);
     
     console.log('✅ Absence alert email sent successfully to:', params.parentEmail);
     
-    // Clean up the temporary inbox with correct request object structure
-    await mailslurp.inboxController.deleteInbox({
-      inboxId: inbox.id
-    });
+    // Clean up the temporary inbox
+    await mailslurp.inboxController.deleteInbox(inbox.id);
     console.log('🗑️ Temporary inbox cleaned up');
     
     return true;
@@ -118,3 +111,6 @@ export const sendParentAbsenceAlert = async (params: EmailParams): Promise<boole
   }
 };
 
+const mailslurp = new MailSlurp({ 
+  apiKey: "04fee299dfad020de401a28bcdec5d33329c41f092dcb017082e067b719b67b3" 
+});
