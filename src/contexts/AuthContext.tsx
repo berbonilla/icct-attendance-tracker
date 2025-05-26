@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkScannedRFIDs = async () => {
       try {
         console.log('🔍 RFID Scanner: Checking for new scans...');
-        const dummyDataModule = await import('../data/emptyDatabase.json');
+        const dummyDataModule = await import('../data/updatedDummyData.json');
         const dummyData = dummyDataModule.default as DatabaseData;
         
         console.log('📋 Database State:', {
@@ -132,6 +132,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             );
             
             console.log('🔐 RFID Status:', isRegistered ? 'REGISTERED' : 'UNREGISTERED');
+            console.log('🔍 Checking RFID against students:', {
+              scannedRFID: earliestRFID,
+              studentRFIDs: Object.values(dummyData.students).map(s => s.rfid),
+              isRegistered
+            });
             
             if (!isRegistered) {
               console.log('🚨 Unregistered RFID detected - Triggering admin authentication');
@@ -172,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('🔐 Authentication attempt for:', id);
     
     try {
-      const dummyDataModule = await import('../data/emptyDatabase.json');
+      const dummyDataModule = await import('../data/updatedDummyData.json');
       const dummyData = dummyDataModule.default as DatabaseData;
       
       if (id.startsWith('TA')) {

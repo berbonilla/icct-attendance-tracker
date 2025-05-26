@@ -28,10 +28,11 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
     const loadData = async () => {
       setScannerStatus('scanning');
       try {
-        const dummyData = await import('../data/dummyData.json');
+        const dummyData = await import('../data/updatedDummyData.json');
         setStudents(dummyData.students || {});
         
         console.log('Scanner: Loading scanned RFIDs...', dummyData.ScannedIDs);
+        console.log('Scanner: Loaded students:', Object.keys(dummyData.students || {}).length, 'students');
         
         // Process scanned RFIDs with timestamps
         if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
@@ -60,7 +61,11 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
               student => student.rfid === earliestRFID
             );
             
-            console.log('Scanner: RFID registration check:', { rfid: earliestRFID, isRegistered });
+            console.log('Scanner: RFID registration check:', { 
+              rfid: earliestRFID, 
+              isRegistered,
+              availableStudentRFIDs: Object.values(dummyData.students).map(s => s.rfid)
+            });
             
             if (!isRegistered) {
               console.log('Scanner: Unregistered RFID detected, triggering admin mode');
@@ -96,7 +101,7 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
 
   const isRFIDRegistered = (rfidId: string) => {
     const registered = Object.values(students).some(student => student.rfid === rfidId);
-    console.log('Checking RFID registration:', { rfidId, registered });
+    console.log('Checking RFID registration:', { rfidId, registered, studentCount: Object.keys(students).length });
     return registered;
   };
 
