@@ -1,5 +1,5 @@
 
-import { MailSlurp } from 'mailslurp-client';
+import emailjs from '@emailjs/browser';
 
 interface ParentAlertData {
   parentEmail: string;
@@ -10,19 +10,22 @@ interface ParentAlertData {
   totalAbsences: number;
 }
 
-const mailslurp = new MailSlurp({ apiKey: 'your-api-key-here' });
+// Initialize EmailJS with your public key
+emailjs.init('T1-ak1I2qtEeyE-a_');
 
 export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promise<boolean> => {
   try {
-    console.log('📧 Attempting to send absence alert email...', alertData);
+    console.log('📧 Attempting to send absence alert email with EmailJS...', alertData);
     
-    // Create a temporary inbox
-    const inbox = await mailslurp.createInbox();
-    console.log('📬 Created temporary inbox:', inbox.id);
-
-    const emailSubject = `Absence Alert: ${alertData.studentName} (${alertData.studentId})`;
-    const emailBody = `
-Dear ${alertData.parentName},
+    const templateParams = {
+      to_email: alertData.parentEmail,
+      to_name: alertData.parentName,
+      student_name: alertData.studentName,
+      student_id: alertData.studentId,
+      absent_dates: alertData.absentDates.join(', '),
+      total_absences: alertData.totalAbsences.toString(),
+      subject: `Absence Alert: ${alertData.studentName} (${alertData.studentId})`,
+      message: `Dear ${alertData.parentName},
 
 This is an automated notification from the ICCT RFID Attendance System.
 
@@ -33,30 +36,23 @@ Absent dates: ${alertData.absentDates.join(', ')}
 Please contact the school if you have any questions or concerns about your child's attendance.
 
 Best regards,
-ICCT Attendance System
-    `.trim();
-
-    // Send email using proper SendEmailRequest object
-    const sendEmailRequest = {
-      to: [alertData.parentEmail],
-      subject: emailSubject,
-      body: emailBody,
-      isHTML: false
+ICCT Attendance System`
     };
 
-    const sentEmail = await mailslurp.sendEmail(inbox.id, sendEmailRequest);
-    console.log('✅ Email sent successfully:', sentEmail.id);
+    // Send email using EmailJS
+    // Note: You'll need to create a service and template in your EmailJS dashboard
+    // and replace 'your_service_id' and 'your_template_id' with actual values
+    const response = await emailjs.send(
+      'your_service_id', // Replace with your EmailJS service ID
+      'your_template_id', // Replace with your EmailJS template ID
+      templateParams,
+      'Db7C53JtWXxHZPunJog2k' // Your private key
+    );
 
-    // Clean up the temporary inbox
-    const deleteRequest = {
-      inboxId: inbox.id
-    };
-    await mailslurp.deleteInbox(deleteRequest);
-    console.log('🗑️ Temporary inbox deleted');
-
+    console.log('✅ Email sent successfully with EmailJS:', response);
     return true;
   } catch (error) {
-    console.error('❌ Failed to send absence alert email:', error);
+    console.error('❌ Failed to send absence alert email with EmailJS:', error);
     return false;
   }
 };
