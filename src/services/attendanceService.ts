@@ -96,7 +96,7 @@ const determineAttendanceStatus = (
   }
 };
 
-const findMatchingClass = (
+const findBestMatchingClass = (
   scanTimeMinutes: number,
   slots: ScheduleSlot[],
   scheduleData: StudentSchedule
@@ -105,7 +105,7 @@ const findMatchingClass = (
   status: 'present' | 'late' | 'absent';
   subject: string;
 } | null => {
-  console.log('🔍 Finding matching class for scan time:', {
+  console.log('🔍 Finding best matching class for scan time:', {
     scanTimeMinutes,
     scanTime: `${Math.floor(scanTimeMinutes / 60)}:${(scanTimeMinutes % 60).toString().padStart(2, '0')}`,
     availableSlots: slots.map(s => s.timeSlot)
@@ -134,37 +134,26 @@ const findMatchingClass = (
     // Calculate how close the scan time is to the class start time
     const timeDifference = Math.abs(scanTimeMinutes - classStartMinutes);
     
-    // Only consider classes within a reasonable window (4 hours before to 4 hours after class start)
-    // This prevents matching classes that are way off in time
-    const maxTimeWindow = 240; // 4 hours in minutes
+    const subject = scheduleData.subjects[slot.subjectId];
+    const subjectName = subject ? `${subject.code} - ${subject.name}` : slot.subjectId;
     
-    if (timeDifference <= maxTimeWindow) {
-      const subject = scheduleData.subjects[slot.subjectId];
-      const subjectName = subject ? `${subject.code} - ${subject.name}` : slot.subjectId;
-      
-      const status = determineAttendanceStatus(scanTimeMinutes, classStartMinutes, classEndMinutes);
-      
-      console.log('⭐ Potential match found:', {
-        slot: slot.timeSlot,
-        subject: subjectName,
-        status,
-        timeDifference: `${timeDifference} minutes from class start`
-      });
+    const status = determineAttendanceStatus(scanTimeMinutes, classStartMinutes, classEndMinutes);
+    
+    console.log('⭐ Class analysis:', {
+      slot: slot.timeSlot,
+      subject: subjectName,
+      status,
+      timeDifference: `${timeDifference} minutes from class start`
+    });
 
-      // Prefer the closest class by time difference, but prioritize same-day classes
-      if (!bestMatch || timeDifference < bestMatch.timeDifference) {
-        bestMatch = {
-          slot,
-          status,
-          subject: subjectName,
-          timeDifference
-        };
-      }
-    } else {
-      console.log('⏰ Class too far from scan time:', {
-        slot: slot.timeSlot,
-        timeDifference: `${timeDifference} minutes (exceeds ${maxTimeWindow} minute window)`
-      });
+    // Always consider all classes for the day to find the best match
+    if (!bestMatch || timeDifference < bestMatch.timeDifference) {
+      bestMatch = {
+        slot,
+        status,
+        subject: subjectName,
+        timeDifference
+      };
     }
   }
 
@@ -182,7 +171,7 @@ const findMatchingClass = (
     };
   }
 
-  console.log('❌ No matching class found within reasonable timeframe');
+  console.log('❌ No matching class found');
   return null;
 };
 
@@ -248,8 +237,8 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     console.log('🕐 Available time slots:', slots.map(s => s.timeSlot));
 
-    // Find the best matching class based on scan time vs class schedule
-    const matchingClass = findMatchingClass(scanTimeInMinutes, slots, scheduleData);
+    // Find the best matching class (closest by time)
+    const matchingClass = findBestMatchingClass(scanTimeInMinutes, slots, scheduleData);
 
     // If no class match found, record as general attendance
     if (!matchingClass) {
