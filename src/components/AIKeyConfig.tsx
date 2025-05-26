@@ -58,12 +58,12 @@ const AIKeyConfig: React.FC<AIKeyConfigProps> = ({ onKeyConfigured }) => {
           Configure AI Analytics
         </CardTitle>
         <CardDescription>
-          Enter your Google Gemini API key to enable real AI-powered attendance analytics and insights.
+          Enter your AI API key to enable real AI-powered attendance analytics and insights.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="api-key">Google Gemini API Key</Label>
+          <Label htmlFor="api-key">AI API Key</Label>
           <div className="relative">
             <Input
               id="api-key"
