@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Edit, Trash, Search, Settings } from 'lucide-react';
+import ScheduleInput from './ScheduleInput';
 
 interface Student {
   name: string;
@@ -31,6 +32,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [newStudentId, setNewStudentId] = useState<string>('');
   const [formData, setFormData] = useState<Student & { id?: string }>({
     name: '',
     rfid: '',
@@ -173,22 +176,35 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         }
       }));
       
+      setNewStudentId(newId);
+      setIsAddDialogOpen(false);
+      
+      // Open schedule dialog next
+      setIsScheduleDialogOpen(true);
+      
       toast({
-        title: "Registration Success",
-        description: `Student ${formData.name} has been registered successfully with ID: ${newId}`,
+        title: "Student Registered",
+        description: `Student ${formData.name} has been registered with ID: ${newId}. Please set their schedule.`,
         duration: 5000
       });
-      
-      // Notify parent component
-      if (onStudentRegistered) {
-        onStudentRegistered();
-      }
-      
-      setIsAddDialogOpen(false);
     }
     
     // Clear form
     resetForm();
+  };
+
+  const handleScheduleSave = (schedule: Record<string, string[]>) => {
+    console.log('Schedule saved for student:', newStudentId, schedule);
+    
+    // Here you would typically save the schedule to the database
+    // For now, we'll just log it and notify the parent component
+    
+    if (onStudentRegistered) {
+      onStudentRegistered();
+    }
+    
+    setIsScheduleDialogOpen(false);
+    setNewStudentId('');
   };
 
   const handleDelete = (studentId: string) => {
@@ -356,8 +372,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 id="add-rfid"
                 value={formData.rfid}
                 onChange={(e) => setFormData({ ...formData, rfid: e.target.value.toUpperCase() })}
-                placeholder="8 hex characters (e.g., BD311B2A)"
-                maxLength={8}
+                placeholder="XX:XX:XX:XX (e.g., BD:31:1B:2A)"
                 readOnly={!!pendingRFID}
                 className={pendingRFID ? "bg-gray-100" : ""}
               />
@@ -416,7 +431,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 onClick={handleSave}
                 className="flex-1 bg-dark-blue hover:bg-light-blue text-white"
               >
-                {pendingRFID ? 'Register Student' : 'Add Student'}
+                {pendingRFID ? 'Register & Set Schedule' : 'Add & Set Schedule'}
               </Button>
             </div>
           </div>
@@ -503,6 +518,14 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Schedule Input Dialog */}
+      <ScheduleInput
+        isOpen={isScheduleDialogOpen}
+        onClose={() => setIsScheduleDialogOpen(false)}
+        onSave={handleScheduleSave}
+        studentName={formData.name}
+      />
     </div>
   );
 };

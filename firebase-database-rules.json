@@ -4,8 +4,14 @@
     ".read": true,
     ".write": true,
     "ScannedIDs": {
-      "RFID": {
-        ".validate": "newData.isString() && newData.val().matches(/^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$/)"
+      "$rfid": {
+        ".validate": "newData.hasChildren(['timestamp', 'processed']) && $rfid.matches(/^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$/)",
+        "timestamp": {
+          ".validate": "newData.isNumber()"
+        },
+        "processed": {
+          ".validate": "newData.isBoolean()"
+        }
       }
     },
     "students": {
@@ -70,7 +76,7 @@
     "schedules": {
       "$studentId": {
         "$day": {
-          ".validate": "newData.val() === null || (newData.isString() && newData.val().length > 0) || root.child('students').child($studentId).exists()"
+          ".validate": "newData.val() === null || (newData.val().length >= 0) || root.child('students').child($studentId).exists()"
         }
       }
     },

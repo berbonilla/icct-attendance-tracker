@@ -1,7 +1,14 @@
 
 {
   "ScannedIDs": {
-    "RFID": ""
+    "9B:54:8E:02": {
+      "timestamp": 1671234567890,
+      "processed": false
+    },
+    "32:65:C1:4C": {
+      "timestamp": 1671234567800,
+      "processed": true
+    }
   },
   "absenteeAlerts": {
     "2024-05-21": [
