@@ -39,7 +39,7 @@ const determineAttendanceStatus = (
   classStartMinutes: number, 
   classEndMinutes: number
 ): 'present' | 'late' | 'absent' => {
-  console.log('🕐 Determining attendance status with NEW LOGIC:', {
+  console.log('🕐 Determining attendance status:', {
     scanTimeMinutes,
     classStartMinutes,
     classEndMinutes,
@@ -56,7 +56,7 @@ const determineAttendanceStatus = (
   const lateWindowStart = classStartMinutes + 15;    // 15 minutes after class starts
   const lateWindowEnd = classStartMinutes + 30;      // 30 minutes after class starts
   
-  console.log('📏 NEW Attendance windows:', {
+  console.log('📏 Attendance windows:', {
     presentWindow: `${Math.floor(presentWindowStart / 60)}:${(presentWindowStart % 60).toString().padStart(2, '0')} - ${Math.floor(presentWindowEnd / 60)}:${(presentWindowEnd % 60).toString().padStart(2, '0')}`,
     lateWindow: `${Math.floor(lateWindowStart / 60)}:${(lateWindowStart % 60).toString().padStart(2, '0')} - ${Math.floor(lateWindowEnd / 60)}:${(lateWindowEnd % 60).toString().padStart(2, '0')}`,
     absentAfter: `${Math.floor(lateWindowEnd / 60)}:${(lateWindowEnd % 60).toString().padStart(2, '0')}`
@@ -69,12 +69,12 @@ const determineAttendanceStatus = (
   }
   
   // LATE: Between 15-30 minutes after class start
-  else if (scanTimeMinutes > lateWindowStart && scanTimeMinutes <= lateWindowEnd) {
+  else if (scanTimeMinutes > presentWindowEnd && scanTimeMinutes <= lateWindowEnd) {
     console.log('⚠️ Status: LATE (scanned 15-30 minutes after class start)');
     return 'late';
   }
   
-  // ABSENT: Outside all acceptable windows
+  // ABSENT: Outside all acceptable windows (either too early or too late)
   else {
     if (scanTimeMinutes > lateWindowEnd) {
       console.log('❌ Status: ABSENT (scanned more than 30 minutes after class start)');
@@ -123,8 +123,9 @@ const findMatchingClass = (
     // Calculate how close the scan time is to the class start time
     const timeDifference = Math.abs(scanTimeMinutes - classStartMinutes);
     
-    // Only consider classes within a reasonable window (2 hours before to 2 hours after class start)
-    const maxTimeWindow = 120; // 2 hours in minutes
+    // Only consider classes within a reasonable window (4 hours before to 4 hours after class start)
+    // This prevents matching classes that are way off in time
+    const maxTimeWindow = 240; // 4 hours in minutes
     
     if (timeDifference <= maxTimeWindow) {
       const subject = scheduleData.subjects[slot.subjectId];
@@ -139,7 +140,7 @@ const findMatchingClass = (
         timeDifference: `${timeDifference} minutes from class start`
       });
 
-      // Always prefer the closest class by time difference
+      // Prefer the closest class by time difference, but prioritize same-day classes
       if (!bestMatch || timeDifference < bestMatch.timeDifference) {
         bestMatch = {
           slot,
