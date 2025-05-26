@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface AuthContextType {
@@ -36,7 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const dummyData = await import('../data/dummyData.json');
         
-        if (dummyData.ScannedIDs) {
+        // Check if ScannedIDs exists and has content
+        if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
           // Find the earliest unprocessed RFID
           const unprocessedRFIDs = Object.entries(dummyData.ScannedIDs)
             .filter(([rfid, data]) => !data.processed && !processedRFIDs.has(rfid))
@@ -50,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setProcessedRFIDs(prev => new Set([...prev, earliestRFID]));
             
             // Check if RFID is registered in students database
-            const isRegistered = Object.values(dummyData.students).some(
+            const isRegistered = dummyData.students && Object.values(dummyData.students).some(
               student => student.rfid === earliestRFID
             );
             
@@ -61,6 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
               console.log('RFID is registered:', earliestRFID);
             }
+          }
+        } else {
+          // No ScannedIDs exist, ensure admin mode is off
+          if (autoAdminMode && !pendingRFID) {
+            setAutoAdminMode(false);
           }
         }
       } catch (error) {
@@ -74,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const interval = setInterval(checkScannedRFIDs, 1000);
     
     return () => clearInterval(interval);
-  }, [processedRFIDs]);
+  }, [processedRFIDs, autoAdminMode, pendingRFID]);
 
   const loadUserData = async (id: string, password?: string) => {
     setIsLoading(true);

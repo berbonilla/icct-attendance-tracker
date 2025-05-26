@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,10 @@ interface Student {
   section: string;
 }
 
+interface StudentWithSchedule extends Student {
+  schedule?: Record<string, string[]>;
+}
+
 interface StudentManagementProps {
   pendingRFID?: string | null;
   onStudentRegistered?: () => void;
@@ -28,6 +33,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   onStudentRegistered
 }) => {
   const [students, setStudents] = useState<Record<string, Student>>({});
+  const [schedules, setSchedules] = useState<Record<string, Record<string, string[]>>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -47,7 +53,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     const loadStudents = async () => {
       try {
         const dummyData = await import('../data/dummyData.json');
-        setStudents(dummyData.students);
+        setStudents(dummyData.students || {});
+        setSchedules(dummyData.schedules || {});
       } catch (error) {
         console.error('Error loading students:', error);
       }
@@ -58,7 +65,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
 
   // Auto-open registration dialog if there's a pending RFID
   useEffect(() => {
-    if (pendingRFID) {
+    if (pendingRFID && !isAddDialogOpen) {
       console.log('Opening registration for pending RFID:', pendingRFID);
       setFormData({
         name: '',
@@ -70,7 +77,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       });
       setIsAddDialogOpen(true);
     }
-  }, [pendingRFID]);
+  }, [pendingRFID, isAddDialogOpen]);
 
   const filteredStudents = Object.entries(students).filter(([id, student]) =>
     id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -97,25 +104,36 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     setIsAddDialogOpen(true);
   };
 
-  const handleSave = async () => {
+  const validateForm = (): boolean => {
     // Validate required fields
-    if (!formData.name || !formData.rfid || !formData.email || !formData.course || !formData.year || !formData.section) {
+    if (!formData.name?.trim() || !formData.rfid?.trim() || !formData.email?.trim() || 
+        !formData.course?.trim() || !formData.year?.trim() || !formData.section?.trim()) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
     // Validate RFID format (XX:XX:XX:XX)
     if (!/^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$/.test(formData.rfid)) {
       toast({
         title: "Error",
-        description: "RFID must be in format XX:XX:XX:XX (e.g., BD:31:1B:2A)",
+        description: "RFID must be in format XX:XX:XX:XX (e.g., 9B:54:8E:02)",
         variant: "destructive"
       });
-      return;
+      return false;
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return false;
     }
 
     // Check for duplicate RFID
@@ -129,21 +147,31 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         description: `RFID ${formData.rfid.toUpperCase()} is already assigned to ${existingRFID[1].name}`,
         variant: "destructive"
       });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
       return;
     }
+
+    const studentData: Student = {
+      name: formData.name.trim(),
+      rfid: formData.rfid.toUpperCase(),
+      email: formData.email.trim(),
+      course: formData.course.trim(),
+      year: formData.year.trim(),
+      section: formData.section.trim()
+    };
 
     if (formData.id && selectedStudent) {
       // Edit existing student
       setStudents(prev => ({
         ...prev,
-        [selectedStudent]: {
-          name: formData.name,
-          rfid: formData.rfid.toUpperCase(),
-          email: formData.email,
-          course: formData.course,
-          year: formData.year,
-          section: formData.section
-        }
+        [selectedStudent]: studentData
       }));
       
       toast({
@@ -151,6 +179,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         description: "Student information updated successfully"
       });
       setIsEditDialogOpen(false);
+      resetForm();
     } else {
       // Add new student - generate new ID
       const year = new Date().getFullYear();
@@ -164,16 +193,10 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         newNumber++;
       } while (existingIds.includes(newId));
 
+      // Save student data
       setStudents(prev => ({
         ...prev,
-        [newId]: {
-          name: formData.name,
-          rfid: formData.rfid.toUpperCase(),
-          email: formData.email,
-          course: formData.course,
-          year: formData.year,
-          section: formData.section
-        }
+        [newId]: studentData
       }));
       
       setNewStudentId(newId);
@@ -184,27 +207,34 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       
       toast({
         title: "Student Registered",
-        description: `Student ${formData.name} has been registered with ID: ${newId}. Please set their schedule.`,
+        description: `Student ${studentData.name} has been registered with ID: ${newId}. Please set their schedule.`,
         duration: 5000
       });
     }
-    
-    // Clear form
-    resetForm();
   };
 
   const handleScheduleSave = (schedule: Record<string, string[]>) => {
     console.log('Schedule saved for student:', newStudentId, schedule);
     
-    // Here you would typically save the schedule to the database
-    // For now, we'll just log it and notify the parent component
+    // Save schedule data
+    setSchedules(prev => ({
+      ...prev,
+      [newStudentId]: schedule
+    }));
     
+    // Mark the RFID as processed and notify parent
     if (onStudentRegistered) {
       onStudentRegistered();
     }
     
     setIsScheduleDialogOpen(false);
     setNewStudentId('');
+    resetForm();
+    
+    toast({
+      title: "Success",
+      description: "Student registration and schedule setup completed successfully"
+    });
   };
 
   const handleDelete = (studentId: string) => {
@@ -214,6 +244,14 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         delete newStudents[studentId];
         return newStudents;
       });
+      
+      // Also remove schedule
+      setSchedules(prev => {
+        const newSchedules = { ...prev };
+        delete newSchedules[studentId];
+        return newSchedules;
+      });
+      
       toast({
         title: "Success",
         description: "Student deleted successfully"
@@ -342,7 +380,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       {/* Add Student Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
         setIsAddDialogOpen(open);
-        if (!open) resetForm();
+        if (!open && !pendingRFID) resetForm();
       }}>
         <DialogContent className="bg-white max-w-md">
           <DialogHeader>
@@ -372,7 +410,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 id="add-rfid"
                 value={formData.rfid}
                 onChange={(e) => setFormData({ ...formData, rfid: e.target.value.toUpperCase() })}
-                placeholder="XX:XX:XX:XX (e.g., BD:31:1B:2A)"
+                placeholder="XX:XX:XX:XX (e.g., 9B:54:8E:02)"
                 readOnly={!!pendingRFID}
                 className={pendingRFID ? "bg-gray-100" : ""}
               />
@@ -422,7 +460,10 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
             <div className="flex space-x-2 pt-4">
               <Button
                 variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
+                onClick={() => {
+                  setIsAddDialogOpen(false);
+                  if (!pendingRFID) resetForm();
+                }}
                 className="flex-1"
               >
                 Cancel
@@ -522,7 +563,11 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       {/* Schedule Input Dialog */}
       <ScheduleInput
         isOpen={isScheduleDialogOpen}
-        onClose={() => setIsScheduleDialogOpen(false)}
+        onClose={() => {
+          setIsScheduleDialogOpen(false);
+          setNewStudentId('');
+          resetForm();
+        }}
         onSave={handleScheduleSave}
         studentName={formData.name}
       />

@@ -1,0 +1,279 @@
+
+{
+  "ScannedIDs": {
+    "9B:54:8E:02": {
+      "timestamp": 1671234567890,
+      "processed": false
+    },
+    "32:65:C1:4C": {
+      "timestamp": 1671234567800,
+      "processed": true
+    }
+  },
+  "students": {
+    "TA202200470": {
+      "name": "Juan Dela Cruz",
+      "rfid": "BD:31:1B:2A",
+      "email": "juan.delacruz@icct.edu.ph",
+      "course": "Computer Science",
+      "year": "3rd Year",
+      "section": "A"
+    },
+    "TA202200471": {
+      "name": "Maria Santos",
+      "rfid": "A7:F2:C8:41",
+      "email": "maria.santos@icct.edu.ph",
+      "course": "Information Technology",
+      "year": "2nd Year",
+      "section": "B"
+    },
+    "TA202200472": {
+      "name": "Pedro Rodriguez",
+      "rfid": "C9:E4:D1:23",
+      "email": "pedro.rodriguez@icct.edu.ph",
+      "course": "Computer Engineering",
+      "year": "4th Year",
+      "section": "A"
+    },
+    "TA202200473": {
+      "name": "Ana Garcia",
+      "rfid": "F8:A1:B6:C5",
+      "email": "ana.garcia@icct.edu.ph",
+      "course": "Computer Science",
+      "year": "1st Year",
+      "section": "C"
+    },
+    "TA202200474": {
+      "name": "Carlos Mendoza",
+      "rfid": "E2:D3:F4:A7",
+      "email": "carlos.mendoza@icct.edu.ph",
+      "course": "Information Technology",
+      "year": "3rd Year",
+      "section": "A"
+    },
+    "TA202200475": {
+      "name": "Isabel Fernandez",
+      "rfid": "B8:C9:D1:E2",
+      "email": "isabel.fernandez@icct.edu.ph",
+      "course": "Computer Science",
+      "year": "2nd Year",
+      "section": "B"
+    }
+  },
+  "schedules": {
+    "TA202200470": {
+      "monday": ["09:00-10:30", "13:00-14:30"],
+      "tuesday": ["08:00-09:30", "11:00-12:30"],
+      "wednesday": ["10:00-11:30", "14:00-15:30"],
+      "thursday": ["09:00-10:30", "13:00-14:30"],
+      "friday": ["08:00-09:30", "15:00-16:30"]
+    },
+    "TA202200471": {
+      "monday": ["08:00-09:30", "14:00-15:30"],
+      "tuesday": ["10:00-11:30", "13:00-14:30"],
+      "wednesday": ["09:00-10:30", "15:00-16:30"],
+      "thursday": ["08:00-09:30", "11:00-12:30"],
+      "friday": ["10:00-11:30", "14:00-15:30"]
+    },
+    "TA202200472": {
+      "monday": ["07:30-09:00", "13:30-15:00"],
+      "tuesday": ["09:30-11:00", "14:30-16:00"],
+      "wednesday": ["08:00-09:30", "12:00-13:30"],
+      "thursday": ["10:00-11:30", "15:00-16:30"],
+      "friday": ["07:30-09:00", "13:30-15:00"]
+    },
+    "TA202200473": {
+      "monday": ["10:30-12:00", "15:30-17:00"],
+      "tuesday": ["08:30-10:00", "13:30-15:00"],
+      "wednesday": ["11:00-12:30", "16:00-17:30"],
+      "thursday": ["09:30-11:00", "14:30-16:00"],
+      "friday": ["10:30-12:00", "15:30-17:00"]
+    },
+    "TA202200474": {
+      "monday": ["08:00-09:30", "13:00-14:30"],
+      "tuesday": ["10:00-11:30", "15:00-16:30"],
+      "wednesday": ["09:00-10:30", "14:00-15:30"],
+      "thursday": ["08:30-10:00", "13:30-15:00"],
+      "friday": ["09:30-11:00", "14:30-16:00"]
+    },
+    "TA202200475": {
+      "monday": ["09:00-10:30", "14:00-15:30"],
+      "tuesday": ["08:00-09:30", "13:00-14:30"],
+      "wednesday": ["10:30-12:00", "15:30-17:00"],
+      "thursday": ["09:30-11:00", "14:30-16:00"],
+      "friday": ["08:30-10:00", "13:30-15:00"]
+    }
+  },
+  "adminUsers": {
+    "ICCTADMIN01": {
+      "name": "Mr. John Admin",
+      "password": "admin123",
+      "role": "Administrator",
+      "email": "admin@icct.edu.ph"
+    },
+    "ICCTADMIN02": {
+      "name": "Ms. Jane Supervisor",
+      "password": "icct2024",
+      "role": "Supervisor", 
+      "email": "supervisor@icct.edu.ph"
+    }
+  },
+  "attendanceRecords": {
+    "TA202200470": {
+      "2024-05-20": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-21": {
+        "status": "present",
+        "timeIn": "07:45",
+        "timeOut": "16:45"
+      },
+      "2024-05-22": {
+        "status": "absent"
+      },
+      "2024-05-23": {
+        "status": "present",
+        "timeIn": "07:25",
+        "timeOut": "16:25"
+      },
+      "2024-05-24": {
+        "status": "late",
+        "timeIn": "08:15",
+        "timeOut": "16:30"
+      }
+    },
+    "TA202200471": {
+      "2024-05-20": {
+        "status": "present",
+        "timeIn": "07:35",
+        "timeOut": "16:35"
+      },
+      "2024-05-21": {
+        "status": "absent"
+      },
+      "2024-05-22": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-23": {
+        "status": "present",
+        "timeIn": "07:40",
+        "timeOut": "16:40"
+      },
+      "2024-05-24": {
+        "status": "present",
+        "timeIn": "07:20",
+        "timeOut": "16:20"
+      }
+    },
+    "TA202200472": {
+      "2024-05-20": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-21": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-22": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-23": {
+        "status": "absent"
+      },
+      "2024-05-24": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      }
+    },
+    "TA202200473": {
+      "2024-05-20": {
+        "status": "late",
+        "timeIn": "08:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-21": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-22": {
+        "status": "absent"
+      },
+      "2024-05-23": {
+        "status": "absent"
+      },
+      "2024-05-24": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      }
+    },
+    "TA202200474": {
+      "2024-05-20": {
+        "status": "present",
+        "timeIn": "07:25",
+        "timeOut": "16:25"
+      },
+      "2024-05-21": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-22": {
+        "status": "present",
+        "timeIn": "07:40",
+        "timeOut": "16:40"
+      },
+      "2024-05-23": {
+        "status": "late",
+        "timeIn": "08:05",
+        "timeOut": "16:30"
+      },
+      "2024-05-24": {
+        "status": "present",
+        "timeIn": "07:35",
+        "timeOut": "16:35"
+      }
+    },
+    "TA202200475": {
+      "2024-05-20": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-21": {
+        "status": "present",
+        "timeIn": "07:30",
+        "timeOut": "16:30"
+      },
+      "2024-05-22": {
+        "status": "late",
+        "timeIn": "08:10",
+        "timeOut": "16:30"
+      },
+      "2024-05-23": {
+        "status": "present",
+        "timeIn": "07:20",
+        "timeOut": "16:20"
+      },
+      "2024-05-24": {
+        "status": "absent"
+      }
+    }
+  },
+  "absenteeAlerts": {
+    "2024-05-21": ["TA202200471"],
+    "2024-05-22": ["TA202200470", "TA202200473"],
+    "2024-05-23": ["TA202200472", "TA202200473"],
+    "2024-05-24": ["TA202200475"]
+  }
+}
