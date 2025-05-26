@@ -54,9 +54,11 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     const dateKey = scanDate.toISOString().split('T')[0];
 
     console.log('📅 Scan details:', {
+      studentId,
       day: currentDay,
       time: currentTime,
-      date: dateKey
+      date: dateKey,
+      timestamp: scannedTime
     });
 
     // Get student's schedule
@@ -64,14 +66,12 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     const scheduleSnapshot = await get(scheduleRef);
     const scheduleData = scheduleSnapshot.val() as StudentSchedule | null;
 
+    console.log('📚 Student schedule data:', scheduleData);
+
     if (!scheduleData) {
       console.log('📋 No schedule found for student:', studentId);
       // Mark RFID as processed even if no schedule
-      const student = await getStudentByRFID(studentId);
-      if (student) {
-        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
-        await set(processedRef, true);
-      }
+      await markRFIDAsProcessed(studentId);
       return;
     }
 
@@ -89,18 +89,15 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     const fullDayName = dayMapping[currentDay];
     const daySchedule = scheduleData[fullDayName];
 
+    console.log('📅 Day schedule for', fullDayName, ':', daySchedule);
+
     if (!daySchedule) {
       console.log('📅 No classes scheduled for', fullDayName);
-      // Mark RFID as processed even if no classes today
-      const student = await getStudentByRFID(studentId);
-      if (student) {
-        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
-        await set(processedRef, true);
-      }
+      // Still record attendance even if no scheduled classes - might be a makeup class
+      await recordGeneralAttendance(studentId, scanDate, currentTime, dateKey, scannedTime);
+      await markRFIDAsProcessed(studentId);
       return;
     }
-
-    console.log('📚 Day schedule:', daySchedule);
 
     // Get existing attendance records for this day
     const attendanceRef = ref(database, `attendanceRecords/${studentId}/${dateKey}`);
@@ -110,7 +107,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     console.log('📖 Existing attendance records for today:', existingAttendance);
 
     // Find the current or next class based on scan time
-    let attendanceStatus: 'present' | 'late' | 'absent' = 'absent';
+    let attendanceStatus: 'present' | 'late' | 'absent' = 'present';
     let currentSubject = '';
     let matchedTimeSlot = '';
     let matchedSubjectId = '';
@@ -125,6 +122,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     console.log('🕐 Available time slots:', slots.map(s => s.timeSlot));
 
+    // Find the best matching time slot
     for (const slot of slots) {
       if (!slot.subjectId) continue;
 
@@ -170,14 +168,11 @@ export const processAttendance = async (studentId: string, scannedTime: number):
       }
     }
 
+    // If no exact match found, record as general attendance
     if (!matchedTimeSlot || !matchedSubjectId) {
-      console.log('❌ No matching class found for scan time - student may be scanning outside class hours');
-      // Mark RFID as processed but don't record attendance
-      const student = await getStudentByRFID(studentId);
-      if (student) {
-        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
-        await set(processedRef, true);
-      }
+      console.log('📝 No exact class match - recording general attendance');
+      await recordGeneralAttendance(studentId, scanDate, currentTime, dateKey, scannedTime);
+      await markRFIDAsProcessed(studentId);
       return;
     }
 
@@ -191,13 +186,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
         existingRecord: existingAttendance[classKey]
       });
       
-      // Mark the scanned RFID as processed but don't update attendance
-      const student = await getStudentByRFID(studentId);
-      if (student) {
-        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
-        await set(processedRef, true);
-        console.log('✅ RFID marked as processed (attendance already exists)');
-      }
+      await markRFIDAsProcessed(studentId);
       return;
     }
 
@@ -225,7 +214,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     // Save updated attendance records to Firebase
     await set(attendanceRef, updatedDayAttendance);
 
-    console.log('✅ Attendance record saved successfully');
+    console.log('✅ Attendance record saved successfully for student:', studentId);
 
     // Check for absence alerts after recording attendance
     if (attendanceStatus === 'absent') {
@@ -234,16 +223,53 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     }
 
     // Mark the scanned RFID as processed
-    const student = await getStudentByRFID(studentId);
-    if (student) {
-      const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
-      await set(processedRef, true);
-      console.log('✅ RFID marked as processed');
-    }
+    await markRFIDAsProcessed(studentId);
 
   } catch (error) {
     console.error('❌ Error processing attendance:', error);
     throw error;
+  }
+};
+
+const recordGeneralAttendance = async (studentId: string, scanDate: Date, currentTime: string, dateKey: string, scannedTime: number) => {
+  console.log('📝 Recording general attendance for student:', studentId);
+  
+  const attendanceRef = ref(database, `attendanceRecords/${studentId}/${dateKey}`);
+  const existingAttendanceSnapshot = await get(attendanceRef);
+  const existingAttendance = (existingAttendanceSnapshot.val() as DayAttendanceRecord) || {};
+  
+  // Create a general attendance record
+  const generalKey = `general_${currentTime}`;
+  
+  if (!existingAttendance[generalKey]) {
+    const generalAttendanceRecord: ClassAttendanceRecord = {
+      status: 'present',
+      timeIn: currentTime,
+      subject: 'General Check-in',
+      timeSlot: currentTime,
+      recordedAt: scannedTime
+    };
+
+    const updatedDayAttendance = {
+      ...existingAttendance,
+      [generalKey]: generalAttendanceRecord
+    };
+
+    await set(attendanceRef, updatedDayAttendance);
+    console.log('✅ General attendance recorded for student:', studentId);
+  }
+};
+
+const markRFIDAsProcessed = async (studentId: string) => {
+  try {
+    const student = await getStudentByRFID(studentId);
+    if (student && student.rfid) {
+      const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
+      await set(processedRef, true);
+      console.log('✅ RFID marked as processed for student:', studentId);
+    }
+  } catch (error) {
+    console.error('❌ Error marking RFID as processed:', error);
   }
 };
 
