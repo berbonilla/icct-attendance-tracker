@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Shield, Users, Clock, Star } from 'lucide-react';
+import { GraduationCap, Users, BookOpen, School } from 'lucide-react';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -85,143 +85,162 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
   const features = [
     {
-      icon: <Shield className="w-6 h-6" />,
-      title: "Secure RFID",
-      description: "Advanced RFID technology for accurate attendance tracking"
+      icon: <GraduationCap className="w-8 h-8" />,
+      title: "Smart Attendance",
+      description: "Automated attendance tracking with advanced RFID technology for accurate student monitoring"
     },
     {
-      icon: <Users className="w-6 h-6" />,
-      title: "Multi-User",
-      description: "Support for students, teachers, and administrators"
+      icon: <Users className="w-8 h-8" />,
+      title: "Student Management",
+      description: "Comprehensive student database with course, year, and section organization"
     },
     {
-      icon: <Clock className="w-6 h-6" />,
-      title: "Real-time",
-      description: "Instant attendance updates and live monitoring"
+      icon: <BookOpen className="w-8 h-8" />,
+      title: "Schedule Integration",
+      description: "Synchronized class schedules with real-time attendance correlation"
     },
     {
-      icon: <Star className="w-6 h-6" />,
-      title: "Analytics",
-      description: "Comprehensive reporting and attendance insights"
+      icon: <School className="w-8 h-8" />,
+      title: "Academic Analytics",
+      description: "Detailed attendance reports and insights for improved academic outcomes"
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
-      {/* Animated background elements */}
+    <div className="min-h-screen bg-gradient-to-br from-school-light-gray via-white to-school-light-blue/20 relative overflow-hidden">
+      {/* Educational background pattern */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute top-20 left-10 w-32 h-32 bg-school-blue/10 rounded-full blur-2xl animate-educational-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-40 h-40 bg-school-green/10 rounded-full blur-2xl animate-educational-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-36 h-36 bg-school-gold/10 rounded-full blur-2xl animate-educational-pulse delay-500"></div>
+        
+        {/* Academic grid pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="grid grid-cols-12 gap-4 h-full">
+            {Array.from({ length: 48 }).map((_, i) => (
+              <div key={i} className="bg-school-navy rounded-sm"></div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-6xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           {/* Header Section */}
-          <div className="text-center space-y-6 mb-12">
-            <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-6">
-              <Shield className="w-4 h-4 text-blue-300 mr-2" />
-              <span className="text-sm text-white/90 font-medium">Secure • Reliable • Real-time</span>
+          <div className="text-center space-y-8 mb-16">
+            <div className="inline-flex items-center px-6 py-3 bg-white/90 backdrop-blur-sm rounded-full border border-school-blue/20 shadow-sm mb-6 animate-slide-up">
+              <School className="w-5 h-5 text-school-blue mr-3" />
+              <span className="text-sm text-school-navy font-semibold">Secure • Efficient • Educational</span>
             </div>
             
-            <h1 className={`font-bold text-white leading-tight ${isMobile ? 'text-4xl' : 'text-6xl lg:text-7xl'}`}>
-              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                ICCT RFID
-              </span>
-              <br />
-              <span className="text-white/90">System</span>
-            </h1>
-            
-            <p className={`text-white/70 max-w-2xl mx-auto leading-relaxed ${isMobile ? 'text-lg' : 'text-xl'}`}>
-              Advanced student attendance management with cutting-edge RFID technology. 
-              Experience seamless tracking, real-time analytics, and comprehensive reporting.
-            </p>
+            <div className="space-y-4 animate-slide-up">
+              <h1 className={`font-bold text-school-navy leading-tight ${isMobile ? 'text-4xl' : 'text-6xl lg:text-7xl'}`}>
+                <span className="bg-gradient-to-r from-school-navy via-school-blue to-school-green bg-clip-text text-transparent">
+                  ICCT College
+                </span>
+                <br />
+                <span className="text-school-navy/80">Attendance System</span>
+              </h1>
+              
+              <p className={`text-school-gray max-w-3xl mx-auto leading-relaxed ${isMobile ? 'text-lg' : 'text-xl'}`}>
+                Streamline your educational experience with our advanced RFID-powered attendance management system. 
+                Designed for modern academic institutions to enhance learning outcomes through precise attendance tracking.
+              </p>
+            </div>
 
             {pendingRFID && (
-              <div className="inline-flex items-center px-6 py-3 bg-amber-500/20 backdrop-blur-sm rounded-lg border border-amber-400/30 animate-pulse">
-                <div className="w-2 h-2 bg-amber-400 rounded-full mr-3 animate-ping"></div>
-                <span className={`text-amber-200 font-medium ${isMobile ? 'text-sm' : 'text-base'}`}>
-                  Unregistered RFID detected: {pendingRFID}
+              <div className="inline-flex items-center px-8 py-4 bg-school-gold/20 backdrop-blur-sm rounded-xl border border-school-gold/30 animate-educational-pulse">
+                <div className="w-3 h-3 bg-school-gold rounded-full mr-4 animate-ping"></div>
+                <span className={`text-school-navy font-semibold ${isMobile ? 'text-sm' : 'text-base'}`}>
+                  New RFID Card Detected: {pendingRFID}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Features Grid */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slide-up">
               {features.map((feature, index) => (
                 <div 
                   key={feature.title}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 group"
-                  style={{ animationDelay: `${index * 100}ms` }}
+                  className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-school-blue/10 hover:border-school-blue/30 transition-all duration-300 hover:scale-105 hover:shadow-lg group"
+                  style={{ animationDelay: `${index * 150}ms` }}
                 >
-                  <div className="text-blue-300 mb-3 group-hover:text-blue-200 transition-colors">
+                  <div className="text-school-blue mb-4 group-hover:text-school-green transition-colors duration-300">
                     {feature.icon}
                   </div>
-                  <h3 className="text-white font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-white/60 text-sm leading-relaxed">{feature.description}</p>
+                  <h3 className="text-school-navy font-bold text-lg mb-3">{feature.title}</h3>
+                  <p className="text-school-gray text-sm leading-relaxed">{feature.description}</p>
                 </div>
               ))}
             </div>
 
             {/* Login Card */}
-            <div className="max-w-md mx-auto w-full">
-              <Card className="bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl">
-                <CardHeader className="text-center pb-6">
+            <div className="max-w-md mx-auto w-full animate-slide-up">
+              <Card className="bg-white/95 backdrop-blur-xl border-school-blue/20 shadow-xl rounded-2xl">
+                <CardHeader className="text-center pb-6 bg-gradient-to-r from-school-navy to-school-blue rounded-t-2xl text-white">
+                  <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
+                    <GraduationCap className="w-8 h-8 text-white" />
+                  </div>
                   <CardTitle className={`text-white ${isMobile ? 'text-xl' : 'text-2xl'}`}>
-                    {autoAdminMode ? 'Admin Authentication Required' : 'Access System'}
+                    {autoAdminMode ? 'Admin Access Required' : 'Student Portal'}
                   </CardTitle>
-                  <CardDescription className={`text-white/70 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                  <CardDescription className={`text-white/90 ${isMobile ? 'text-sm' : 'text-base'}`}>
                     {autoAdminMode 
-                      ? 'Please login as admin to register the new RFID'
-                      : 'Enter your Student ID (TA202200XXX) or Admin ID'
+                      ? 'Administrator login required for RFID registration'
+                      : 'Enter your Student ID (TA202200XXX) or Administrator credentials'
                     }
                   </CardDescription>
                 </CardHeader>
-                <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+                <CardContent className={`${isMobile ? 'p-6' : 'p-8'} bg-white rounded-b-2xl`}>
                   {!autoAdminMode && (
                     <form onSubmit={handleIdSubmit} className="space-y-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="id" className="text-white/90">ID Number</Label>
+                      <div className="space-y-3">
+                        <Label htmlFor="id" className="text-school-navy font-semibold">Academic ID</Label>
                         <Input
                           id="id"
                           type="text"
                           placeholder="Enter Student ID or Admin ID"
                           value={idInput}
                           onChange={(e) => setIdInput(e.target.value)}
-                          className={`bg-white/10 border-white/30 text-white placeholder-white/50 focus:border-blue-400 focus:ring-blue-400/20 ${isMobile ? 'h-12 text-base' : ''}`}
+                          className={`input-school ${isMobile ? 'h-12 text-base' : 'h-14'} border-2`}
                         />
                       </div>
                       <Button 
                         type="submit" 
-                        className={`w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${isMobile ? 'h-12 text-base' : ''}`}
+                        className={`btn-school-primary w-full ${isMobile ? 'h-12 text-base' : 'h-14'}`}
                         disabled={isLoading}
                       >
                         {isLoading ? (
                           <div className="flex items-center">
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                            Accessing...
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                            Authenticating...
                           </div>
                         ) : (
-                          'Access System'
+                          <>
+                            <GraduationCap className="w-5 h-5 mr-2" />
+                            Access Academic Portal
+                          </>
                         )}
                       </Button>
                     </form>
                   )}
                   
                   {autoAdminMode && (
-                    <div className="text-center space-y-4">
-                      <div className="p-4 bg-amber-500/20 rounded-lg border border-amber-400/30">
-                        <p className={`text-amber-200 ${isMobile ? 'text-sm' : 'text-base'}`}>
-                          An unregistered RFID was detected. Admin login required to register new student.
+                    <div className="text-center space-y-6">
+                      <div className="p-6 bg-school-gold/10 rounded-xl border border-school-gold/30">
+                        <School className="w-12 h-12 text-school-gold mx-auto mb-3" />
+                        <p className={`text-school-navy font-medium ${isMobile ? 'text-sm' : 'text-base'}`}>
+                          Unregistered RFID detected. Administrator access required for student enrollment.
                         </p>
                       </div>
                       <Button 
                         onClick={() => setShowPasswordDialog(true)}
-                        className={`w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${isMobile ? 'h-12 text-base' : ''}`}
+                        className={`btn-school-primary w-full ${isMobile ? 'h-12 text-base' : 'h-14'}`}
                       >
-                        Admin Login
+                        <Users className="w-5 h-5 mr-2" />
+                        Administrator Login
                       </Button>
                     </div>
                   )}
@@ -234,52 +253,55 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
       {/* Admin Password Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className={`bg-slate-900/95 backdrop-blur-xl border-white/20 text-white ${isMobile ? 'w-[95vw] max-w-sm' : 'max-w-lg'}`}>
-          <DialogHeader>
-            <DialogTitle className={`text-white ${isMobile ? 'text-lg' : 'text-xl'}`}>
-              Admin Authentication
+        <DialogContent className={`bg-white border-school-blue/20 text-school-navy ${isMobile ? 'w-[95vw] max-w-sm' : 'max-w-lg'} rounded-2xl`}>
+          <DialogHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-school-blue/10 rounded-full flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 text-school-blue" />
+            </div>
+            <DialogTitle className={`text-school-navy font-bold ${isMobile ? 'text-lg' : 'text-xl'}`}>
+              Administrator Authentication
             </DialogTitle>
-            <DialogDescription className={`text-white/70 ${isMobile ? 'text-sm' : 'text-base'}`}>
+            <DialogDescription className={`text-school-gray ${isMobile ? 'text-sm' : 'text-base'}`}>
               {pendingRFID 
-                ? `Please enter admin credentials to register RFID: ${pendingRFID}`
-                : "Please enter your password to access the admin dashboard"
+                ? `Please authenticate to register RFID: ${pendingRFID}`
+                : "Enter your administrator credentials to access the management dashboard"
               }
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAdminLogin} className="space-y-4">
+          <form onSubmit={handleAdminLogin} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="admin-id" className="text-white/90">Admin ID</Label>
+              <Label htmlFor="admin-id" className="text-school-navy font-semibold">Administrator ID</Label>
               <Input
                 id="admin-id"
                 value={adminId}
                 onChange={(e) => setAdminId(e.target.value)}
-                placeholder="Enter admin ID"
-                className={`bg-white/10 border-white/30 text-white placeholder-white/50 focus:border-blue-400 focus:ring-blue-400/20 ${isMobile ? 'h-12 text-base' : ''}`}
+                placeholder="Enter administrator ID"
+                className={`input-school ${isMobile ? 'h-12 text-base' : ''}`}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/90">Password</Label>
+              <Label htmlFor="password" className="text-school-navy font-semibold">Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter admin password"
+                placeholder="Enter administrator password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`bg-white/10 border-white/30 text-white placeholder-white/50 focus:border-blue-400 focus:ring-blue-400/20 ${isMobile ? 'h-12 text-base' : ''}`}
+                className={`input-school ${isMobile ? 'h-12 text-base' : ''}`}
               />
             </div>
-            <div className={`flex gap-3 ${isMobile ? 'flex-col' : ''}`}>
+            <div className={`flex gap-4 ${isMobile ? 'flex-col' : ''}`}>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setShowPasswordDialog(false)}
-                className={`bg-white/10 border-white/30 text-white hover:bg-white/20 ${isMobile ? 'w-full h-12' : 'flex-1'}`}
+                className={`btn-school-secondary ${isMobile ? 'w-full h-12' : 'flex-1'}`}
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                className={`bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 ${isMobile ? 'w-full h-12' : 'flex-1'}`}
+                className={`btn-school-primary ${isMobile ? 'w-full h-12' : 'flex-1'}`}
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -288,7 +310,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     Verifying...
                   </div>
                 ) : (
-                  'Login'
+                  'Authenticate'
                 )}
               </Button>
             </div>
