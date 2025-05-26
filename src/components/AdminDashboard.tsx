@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,31 +41,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     const loadAdminData = async () => {
       try {
-        // Import the dummy data and explicitly type it
-        const dummyDataModule = await import('../data/dummyData.json');
-        const dummyData = dummyDataModule.default as any; // Use any to bypass initial type checking
+        // Load from the actual database file (updatedDummyData.json)
+        const dummyDataModule = await import('../data/updatedDummyData.json');
+        const dummyData = dummyDataModule.default as DummyDataStructure;
         
-        console.log('Loading admin data...', dummyData);
+        console.log('Loading admin data from updatedDummyData.json...', dummyData);
         
-        // Type assertion with proper conversion for attendance records
-        const typedAttendance: AttendanceData = {};
-        Object.entries(dummyData.attendanceRecords || {}).forEach(([studentId, records]) => {
-          typedAttendance[studentId] = {};
-          Object.entries(records as Record<string, any>).forEach(([date, record]) => {
-            typedAttendance[studentId][date] = {
-              status: record.status as 'present' | 'absent' | 'late',
-              timeIn: record.timeIn,
-              timeOut: record.timeOut
-            };
-          });
-        });
-        
-        setAttendanceData(typedAttendance);
+        // Set the data from the actual database
+        setAttendanceData(dummyData.attendanceRecords || {});
         setStudents(dummyData.students || {});
         
-        console.log('Admin data loaded successfully');
+        console.log('Admin data loaded successfully:', {
+          studentsCount: Object.keys(dummyData.students || {}).length,
+          attendanceRecordsCount: Object.keys(dummyData.attendanceRecords || {}).length
+        });
       } catch (error) {
         console.error('Error loading admin data:', error);
+        // Fallback to empty data if loading fails
+        setAttendanceData({});
+        setStudents({});
       }
     };
 
@@ -220,39 +215,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <CardDescription>Student attendance records for {filter}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(attendanceData).map(([studentId, records]) => {
-                    const student = students[studentId];
-                    if (!student) return null;
-                    
-                    return (
-                      <div key={studentId} className="border border-gray-medium rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h3 className="font-semibold text-dark-blue">{student.name}</h3>
-                            <p className="text-sm text-gray-dark">
-                              {studentId} | {student.course} - {student.year}-{student.section}
-                            </p>
+                {Object.keys(attendanceData).length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-dark text-lg">No attendance records found</p>
+                    <p className="text-gray-500 text-sm mt-2">Add students to start tracking attendance</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {Object.entries(attendanceData).map(([studentId, records]) => {
+                      const student = students[studentId];
+                      if (!student) return null;
+                      
+                      return (
+                        <div key={studentId} className="border border-gray-medium rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-semibold text-dark-blue">{student.name}</h3>
+                              <p className="text-sm text-gray-dark">
+                                {studentId} | {student.course} - {student.year}-{student.section}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+                            {Object.entries(records)
+                              .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+                              .slice(0, 7)
+                              .map(([date, record]) => (
+                                <div key={date} className="bg-gray-light p-2 rounded text-center">
+                                  <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
+                                  {getStatusBadge(record.status)}
+                                  {record.timeIn && (
+                                    <p className="text-xs text-gray-dark mt-1">{record.timeIn}</p>
+                                  )}
+                                </div>
+                              ))}
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
-                          {Object.entries(records)
-                            .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-                            .slice(0, 7)
-                            .map(([date, record]) => (
-                              <div key={date} className="bg-gray-light p-2 rounded text-center">
-                                <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
-                                {getStatusBadge(record.status)}
-                                {record.timeIn && (
-                                  <p className="text-xs text-gray-dark mt-1">{record.timeIn}</p>
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
