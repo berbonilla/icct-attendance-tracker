@@ -236,30 +236,22 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     }
   };
 
-  const saveScheduleData = async (studentId: string, schedule: Record<string, string[]>) => {
+  const saveScheduleToFirebase = async (studentId: string, schedule: Record<string, any>) => {
     try {
       console.log('Saving schedule data to Firebase:', { studentId, schedule });
       
-      // Convert schedule arrays to strings that match Firebase rules
-      // Firebase rules expect schedule values to be strings or null
-      const formattedSchedule: Record<string, string[] | null> = {};
-      
-      // Only include days that have time slots, format them as arrays
-      Object.entries(schedule).forEach(([day, timeSlots]) => {
-        if (timeSlots.length > 0) {
-          formattedSchedule[day] = timeSlots;
-        } else {
-          formattedSchedule[day] = null;
-        }
-      });
-      
       const scheduleRef = ref(database, `schedules/${studentId}`);
-      await set(scheduleRef, formattedSchedule);
+      await set(scheduleRef, schedule);
       
       console.log('✅ Schedule data saved to Firebase:', studentId);
       return true;
     } catch (error) {
       console.error('❌ Error saving schedule data to Firebase:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save schedule to database",
+        variant: "destructive"
+      });
       return false;
     }
   };
@@ -344,7 +336,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   const handleScheduleSave = async (schedule: Record<string, string[]>) => {
     console.log('Processing schedule save for student:', newStudentId, schedule);
     
-    const success = await saveScheduleData(newStudentId, schedule);
+    const success = await saveScheduleToFirebase(newStudentId, schedule);
     
     if (success) {
       // Mark the RFID as processed and notify parent
