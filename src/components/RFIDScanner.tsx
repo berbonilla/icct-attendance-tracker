@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   const [lastScanTime, setLastScanTime] = useState<number>(0);
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
   const [scannerStatus, setScannerStatus] = useState<'idle' | 'scanning' | 'processing'>('idle');
+  const [availableRFIDs, setAvailableRFIDs] = useState<string[]>([]);
   const { setAutoAdminMode, setPendingRFID } = useAuth();
   const isMobile = useIsMobile();
 
@@ -50,8 +52,16 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
         const dummyData = dummyDataModule.default as DatabaseData;
         setStudents(dummyData.students || {});
         
+        // Extract available RFIDs from student database for simulation
+        const studentRFIDs = Object.values(dummyData.students || {})
+          .map(student => student.rfid)
+          .filter(rfid => rfid) as string[];
+        
+        setAvailableRFIDs(studentRFIDs);
+        
         console.log('Scanner: Loading scanned RFIDs...', dummyData.ScannedIDs);
         console.log('Scanner: Loaded students:', Object.keys(dummyData.students || {}).length, 'students');
+        console.log('Scanner: Available RFIDs from database:', studentRFIDs);
         
         // Process scanned RFIDs with timestamps
         if (dummyData.ScannedIDs && Object.keys(dummyData.ScannedIDs).length > 0) {
@@ -137,8 +147,22 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   };
 
   const simulateRFIDScan = async () => {
-    const testRFIDs = ['9B:54:8E:02', 'FF:FF:FF:FF', 'AA:BB:CC:DD', 'BD:31:1B:2A'];
-    const randomRFID = testRFIDs[Math.floor(Math.random() * testRFIDs.length)];
+    // Generate a random RFID that might or might not be in the database
+    const allPossibleRFIDs = [
+      ...availableRFIDs, // RFIDs from database
+      // Add some random unregistered RFIDs for testing
+      ...Array.from({ length: 3 }, () => {
+        const hex = () => Math.floor(Math.random() * 256).toString(16).toUpperCase().padStart(2, '0');
+        return `${hex()}:${hex()}:${hex()}:${hex()}`;
+      })
+    ];
+    
+    if (allPossibleRFIDs.length === 0) {
+      console.log('No RFIDs available for simulation');
+      return;
+    }
+    
+    const randomRFID = allPossibleRFIDs[Math.floor(Math.random() * allPossibleRFIDs.length)];
     const timestamp = Date.now();
     
     console.log('Simulating RFID scan:', { rfid: randomRFID, timestamp });
@@ -229,6 +253,7 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
         <Button 
           onClick={simulateRFIDScan}
           className={`w-full bg-light-blue hover:bg-dark-blue text-white ${isMobile ? 'h-12 text-base' : ''}`}
+          disabled={availableRFIDs.length === 0}
         >
           <Scan className={`mr-2 ${isMobile ? 'w-4 h-4' : 'w-4 h-4'}`} />
           {isMobile ? 'Simulate Scan' : 'Simulate RFID Scan'}
@@ -336,6 +361,12 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
               <span>Students:</span>
               <Badge variant="outline" className={isMobile ? 'text-xs px-1 py-0.5' : ''}>
                 {Object.keys(students).length}
+              </Badge>
+            </div>
+            <div className="flex justify-between">
+              <span>Available RFIDs:</span>
+              <Badge variant="outline" className={isMobile ? 'text-xs px-1 py-0.5' : ''}>
+                {availableRFIDs.length}
               </Badge>
             </div>
             <div className="flex justify-between">
