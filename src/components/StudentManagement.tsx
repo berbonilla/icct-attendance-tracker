@@ -11,6 +11,19 @@ import ScheduleInput from './ScheduleInput';
 import { database } from '@/config/firebase';
 import { ref, onValue, set, remove, off } from 'firebase/database';
 
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+}
+
+interface ScheduleSlot {
+  id: string;
+  timeSlot: string;
+  subjectId: string | null;
+}
+
 interface Student {
   name: string;
   rfid: string;
@@ -21,7 +34,7 @@ interface Student {
 }
 
 interface StudentWithSchedule extends Student {
-  schedule?: Record<string, string[]>;
+  schedule?: Record<string, any>;
 }
 
 interface StudentManagementProps {
@@ -34,7 +47,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   onStudentRegistered
 }) => {
   const [students, setStudents] = useState<Record<string, Student>>({});
-  const [schedules, setSchedules] = useState<Record<string, Record<string, string[]>>>({});
+  const [schedules, setSchedules] = useState<Record<string, Record<string, any>>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -135,7 +148,6 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   const validateForm = (): boolean => {
     console.log('Validating form data:', formData);
     
-    // Validate required fields
     if (!formData.name?.trim() || !formData.rfid?.trim() || !formData.email?.trim() || 
         !formData.course?.trim() || !formData.year?.trim() || !formData.section?.trim()) {
       toast({
@@ -147,7 +159,6 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       return false;
     }
 
-    // Validate RFID format (XX:XX:XX:XX)
     if (!/^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$/.test(formData.rfid)) {
       toast({
         title: "Error",
@@ -158,7 +169,6 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       return false;
     }
 
-    // Validate email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       toast({
         title: "Error",
@@ -169,7 +179,6 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       return false;
     }
 
-    // Validate year format to match Firebase rules
     if (!/^[1-4](st|nd|rd|th) Year$/.test(formData.year)) {
       toast({
         title: "Error",
@@ -180,7 +189,6 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       return false;
     }
 
-    // Validate section format (single letter A-Z)
     if (!/^[A-Z]$/.test(formData.section)) {
       toast({
         title: "Error", 
@@ -191,7 +199,6 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       return false;
     }
 
-    // Check for duplicate RFID
     const existingRFID = Object.entries(students).find(([id, student]) => 
       student.rfid.toLowerCase() === formData.rfid.toLowerCase() && id !== selectedStudent
     );
@@ -221,17 +228,47 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     }
   };
 
+  const generateStudentId = (): string => {
+    const currentYear = new Date().getFullYear();
+    const existingIds = Object.keys(students);
+    let newNumber = 1;
+    let newId = '';
+    
+    do {
+      const paddedNumber = newNumber.toString().padStart(6, '0');
+      newId = `TA${currentYear}${paddedNumber}`;
+      newNumber++;
+    } while (existingIds.includes(newId));
+
+    console.log('Generated new student ID:', newId);
+    return newId;
+  };
+
   const saveStudentData = async (studentId: string, studentData: Student) => {
     try {
       console.log('Saving student data to Firebase:', { studentId, studentData });
       
+      // Ensure data matches Firebase rules exactly
+      const validatedData = {
+        name: studentData.name.trim(),
+        rfid: studentData.rfid.toUpperCase(),
+        email: studentData.email.trim(),
+        course: studentData.course.trim(),
+        year: studentData.year.trim(),
+        section: studentData.section.trim()
+      };
+      
+      console.log('Validated student data:', validatedData);
+      
       const studentRef = ref(database, `students/${studentId}`);
-      await set(studentRef, studentData);
+      await set(studentRef, validatedData);
       
       console.log('✅ Student data saved to Firebase:', studentId);
       return true;
     } catch (error) {
       console.error('❌ Error saving student data to Firebase:', error);
+      console.error('Student ID format:', studentId);
+      console.error('Student data structure:', studentData);
       return false;
     }
   };
@@ -240,8 +277,29 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     try {
       console.log('Saving schedule data to Firebase:', { studentId, schedule });
       
+      // Convert the schedule format to match Firebase rules
+      const firebaseSchedule: Record<string, any> = {};
+      
+      if (schedule.timeSlots) {
+        Object.entries(schedule.timeSlots).forEach(([day, slots]: [string, any]) => {
+          if (Array.isArray(slots) && slots.length > 0) {
+            firebaseSchedule[day] = slots.map((slot: any) => ({
+              timeSlot: slot.timeSlot,
+              subjectId: slot.subjectId
+            }));
+          }
+        });
+      }
+      
+      // Also save subjects data
+      if (schedule.subjects) {
+        firebaseSchedule.subjects = schedule.subjects;
+      }
+      
+      console.log('Firebase formatted schedule:', firebaseSchedule);
+      
       const scheduleRef = ref(database, `schedules/${studentId}`);
-      await set(scheduleRef, schedule);
+      await set(scheduleRef, firebaseSchedule);
       
       console.log('✅ Schedule data saved to Firebase:', studentId);
       return true;
@@ -273,7 +331,6 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     console.log('Processing save with data:', studentData);
 
     if (formData.id && selectedStudent) {
-      // Edit existing student
       const success = await saveStudentData(selectedStudent, studentData);
       
       if (success) {
@@ -291,31 +348,15 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         });
       }
     } else {
-      // Add new student - generate new ID that matches Firebase rules (TA followed by 9 digits)
-      const year = new Date().getFullYear();
-      const existingIds = Object.keys(students);
-      let newNumber = 1;
-      let newId = '';
-      
-      do {
-        const paddedNumber = newNumber.toString().padStart(6, '0');
-        newId = `TA${year}${paddedNumber}`;
-        newNumber++;
-      } while (existingIds.includes(newId));
-
-      console.log('Generated new student ID:', newId);
-
-      // Save student data
+      const newId = generateStudentId();
       const success = await saveStudentData(newId, studentData);
       
       if (success) {
         setNewStudentId(newId);
         setIsAddDialogOpen(false);
         
-        // Delete the scanned RFID from ScannedIDs
         await deleteScannedRFID(studentData.rfid);
         
-        // Open schedule dialog next
         setIsScheduleDialogOpen(true);
         
         toast({
@@ -333,13 +374,12 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     }
   };
 
-  const handleScheduleSave = async (schedule: Record<string, string[]>) => {
+  const handleScheduleSave = async (schedule: Record<string, any>) => {
     console.log('Processing schedule save for student:', newStudentId, schedule);
     
     const success = await saveScheduleToFirebase(newStudentId, schedule);
     
     if (success) {
-      // Mark the RFID as processed and notify parent
       if (onStudentRegistered) {
         onStudentRegistered();
       }
@@ -364,11 +404,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
   const handleDelete = async (studentId: string) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        // Remove from Firebase
         const studentRef = ref(database, `students/${studentId}`);
         await remove(studentRef);
         
-        // Also remove schedule
         const scheduleRef = ref(database, `schedules/${studentId}`);
         await remove(scheduleRef);
         

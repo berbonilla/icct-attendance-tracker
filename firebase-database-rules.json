@@ -17,12 +17,12 @@
     "students": {
       ".indexOn": ["rfid", "name", "email"],
       "$studentId": {
-        ".validate": "newData.hasChildren(['name', 'rfid', 'email', 'course', 'year', 'section']) && $studentId.matches(/^TA[0-9]{9}$/)",
+        ".validate": "newData.hasChildren(['name', 'rfid', 'email', 'course', 'year', 'section']) && $studentId.matches(/^TA[0-9]{10}$/)",
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
         },
         "rfid": {
-          ".validate": "newData.isString() && newData.val().matches(/^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$/) && !root.child('students').hasChild(newData.val())"
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}$/)"
         },
         "email": {
           ".validate": "newData.isString() && newData.val().contains('@') && newData.val().length <= 100"
@@ -41,7 +41,7 @@
     "adminUsers": {
       ".indexOn": ["email"],
       "$adminId": {
-        ".validate": "newData.hasChildren(['name', 'password', 'role', 'email']) && $adminId.matches(/^ICCTADMIN[0-9]{2}$/)",
+        ".validate": "newData.hasChildren(['name', 'password', 'role', 'email'])",
         "password": {
           ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 50"
         },
@@ -77,8 +77,31 @@
     "schedules": {
       "$studentId": {
         ".validate": "root.child('students').child($studentId).exists()",
+        "subjects": {
+          "$subjectId": {
+            ".validate": "newData.hasChildren(['name', 'code', 'color'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+            },
+            "code": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 10"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            }
+          }
+        },
         "$day": {
-          ".validate": "($day === 'monday' || $day === 'tuesday' || $day === 'wednesday' || $day === 'thursday' || $day === 'friday') && (newData.val() === null || newData.val().length >= 0)"
+          ".validate": "($day === 'monday' || $day === 'tuesday' || $day === 'wednesday' || $day === 'thursday' || $day === 'friday') && newData.isString()",
+          "$index": {
+            ".validate": "newData.hasChildren(['timeSlot', 'subjectId'])",
+            "timeSlot": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "subjectId": {
+              ".validate": "newData.isString() || newData.val() === null"
+            }
+          }
         }
       }
     },
