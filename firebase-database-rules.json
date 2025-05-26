@@ -92,7 +92,7 @@
           }
         },
         "$day": {
-          ".validate": "($day === 'monday' || $day === 'tuesday' || $day === 'wednesday' || $day === 'thursday' || $day === 'friday') && newData.isString()",
+          ".validate": "($day === 'monday' || $day === 'tuesday' || $day === 'wednesday' || $day === 'thursday' || $day === 'friday' || $day === 'saturday' || $day === 'sunday') && newData.val() !== null",
           "$index": {
             ".validate": "newData.hasChildren(['timeSlot', 'subjectId'])",
             "timeSlot": {

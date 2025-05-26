@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -277,23 +278,35 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     try {
       console.log('Saving schedule data to Firebase:', { studentId, schedule });
       
-      // Convert the schedule format to match Firebase rules
+      // Format schedule data to match Firebase rules exactly
       const firebaseSchedule: Record<string, any> = {};
       
-      if (schedule.timeSlots) {
-        Object.entries(schedule.timeSlots).forEach(([day, slots]: [string, any]) => {
-          if (Array.isArray(slots) && slots.length > 0) {
-            firebaseSchedule[day] = slots.map((slot: any) => ({
-              timeSlot: slot.timeSlot,
-              subjectId: slot.subjectId
-            }));
-          }
+      // Save subjects first
+      if (schedule.subjects && Object.keys(schedule.subjects).length > 0) {
+        firebaseSchedule.subjects = {};
+        Object.entries(schedule.subjects).forEach(([subjectId, subject]: [string, any]) => {
+          firebaseSchedule.subjects[subjectId] = {
+            name: subject.name,
+            code: subject.code,
+            color: subject.color
+          };
         });
       }
       
-      // Also save subjects data
-      if (schedule.subjects) {
-        firebaseSchedule.subjects = schedule.subjects;
+      // Format time slots for each day
+      if (schedule.timeSlots && Object.keys(schedule.timeSlots).length > 0) {
+        Object.entries(schedule.timeSlots).forEach(([day, slots]: [string, any]) => {
+          if (Array.isArray(slots) && slots.length > 0) {
+            // Create indexed structure for Firebase (0, 1, 2, etc.)
+            firebaseSchedule[day] = {};
+            slots.forEach((slot: any, index: number) => {
+              firebaseSchedule[day][index] = {
+                timeSlot: slot.timeSlot,
+                subjectId: slot.subjectId || null
+              };
+            });
+          }
+        });
       }
       
       console.log('Firebase formatted schedule:', firebaseSchedule);
