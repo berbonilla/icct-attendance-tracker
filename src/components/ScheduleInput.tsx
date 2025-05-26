@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -52,6 +51,7 @@ const ScheduleInput: React.FC<ScheduleInputProps> = ({
           color: subject.color
         }));
         setSubjects(loadedSubjects);
+        console.log('Loaded subjects:', loadedSubjects);
       }
 
       // Load existing schedule slots
@@ -80,7 +80,7 @@ const ScheduleInput: React.FC<ScheduleInputProps> = ({
       });
       
       setSchedule(loadedSchedule);
-      console.log('Loaded schedule data:', { subjects: loadedSubjects, schedule: loadedSchedule });
+      console.log('Loaded schedule data:', { schedule: loadedSchedule });
     } else if (isOpen && !existingSchedule) {
       // Reset for new schedule
       setSubjects([]);
