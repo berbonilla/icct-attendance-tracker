@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { Users, Calendar, Clock, TrendingUp } from 'lucide-react';
-import { AttendanceData } from '@/types/attendance';
+import { AttendanceData, ClassAttendanceRecord, DayAttendanceRecord } from '@/types/attendance';
 import { DummyDataStructure, DummyDataStudent } from '@/types/dummyData';
 import StudentManagement from './StudentManagement';
 import AttendanceAnalytics from './AttendanceAnalytics';
@@ -82,7 +82,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, []);
 
   const calculateStats = () => {
-    const allRecords = Object.values(attendanceData).flatMap(studentRecords => Object.values(studentRecords));
+    const allRecords: ClassAttendanceRecord[] = [];
+    
+    // Extract all class attendance records from the new structure
+    Object.values(attendanceData).forEach(studentRecords => {
+      Object.values(studentRecords).forEach(dayRecord => {
+        if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
+          // Handle both old format (single record) and new format (day with multiple classes)
+          if ('timeSlot' in dayRecord) {
+            // New format: ClassAttendanceRecord
+            allRecords.push(dayRecord as ClassAttendanceRecord);
+          } else {
+            // Old format: convert to ClassAttendanceRecord format for processing
+            allRecords.push({
+              status: dayRecord.status,
+              timeIn: dayRecord.timeIn,
+              timeOut: dayRecord.timeOut,
+              subject: dayRecord.subject || 'Unknown',
+              timeSlot: '00:00-00:00',
+              recordedAt: Date.now()
+            } as ClassAttendanceRecord);
+          }
+        } else if (typeof dayRecord === 'object' && dayRecord !== null) {
+          // New format: DayAttendanceRecord with multiple classes
+          Object.values(dayRecord).forEach(classRecord => {
+            if (typeof classRecord === 'object' && 'status' in classRecord) {
+              allRecords.push(classRecord as ClassAttendanceRecord);
+            }
+          });
+        }
+      });
+    });
+
     const total = allRecords.length;
     const present = allRecords.filter(r => r.status === 'present' || r.status === 'late').length;
     const absent = allRecords.filter(r => r.status === 'absent').length;
@@ -281,15 +312,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             {Object.entries(records)
                               .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
                               .slice(0, 7)
-                              .map(([date, record]) => (
-                                <div key={date} className="bg-gray-light p-2 rounded text-center">
-                                  <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
-                                  {getStatusBadge(record.status)}
-                                  {record.timeIn && (
-                                    <p className="text-xs text-gray-dark mt-1">{record.timeIn}</p>
-                                  )}
-                                </div>
-                              ))}
+                              .map(([date, dayRecord]) => {
+                                // Handle both old and new format
+                                if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord && 'timeSlot' in dayRecord) {
+                                  // Single class record (old format or single class day)
+                                  const record = dayRecord as ClassAttendanceRecord;
+                                  return (
+                                    <div key={date} className="bg-gray-light p-2 rounded text-center">
+                                      <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
+                                      {getStatusBadge(record.status)}
+                                      {record.timeIn && (
+                                        <p className="text-xs text-gray-dark mt-1">{record.timeIn}</p>
+                                      )}
+                                    </div>
+                                  );
+                                } else if (typeof dayRecord === 'object' && dayRecord !== null) {
+                                  // Multiple classes in a day (new format)
+                                  const dayClasses = Object.values(dayRecord as DayAttendanceRecord);
+                                  if (dayClasses.length === 0) return null;
+                                  
+                                  // Show summary of the day
+                                  const presentCount = dayClasses.filter(c => c.status === 'present').length;
+                                  const lateCount = dayClasses.filter(c => c.status === 'late').length;
+                                  const absentCount = dayClasses.filter(c => c.status === 'absent').length;
+                                  
+                                  let overallStatus = 'present';
+                                  if (absentCount > 0) overallStatus = 'absent';
+                                  else if (lateCount > 0) overallStatus = 'late';
+                                  
+                                  return (
+                                    <div key={date} className="bg-gray-light p-2 rounded text-center">
+                                      <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
+                                      {getStatusBadge(overallStatus)}
+                                      <p className="text-xs text-gray-dark mt-1">
+                                        {dayClasses.length} classes
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })}
                           </div>
                         </div>
                       );

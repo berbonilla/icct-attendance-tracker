@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Users, Calendar, Clock, AlertTriangle, Brain, Zap, Sparkles } from 'lucide-react';
-import { AttendanceData } from '@/types/attendance';
+import { AttendanceData, ClassAttendanceRecord, DayAttendanceRecord } from '@/types/attendance';
 import { DummyDataStudent } from '@/types/dummyData';
 import { aiAnalyticsService } from '@/services/aiAnalyticsService';
 import AIKeyConfig from './AIKeyConfig';
@@ -35,11 +35,37 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
       const student = students[studentId];
       if (!student) return null;
 
-      const recordsArray = Object.values(records);
-      const total = recordsArray.length;
-      const present = recordsArray.filter(r => r.status === 'present').length;
-      const late = recordsArray.filter(r => r.status === 'late').length;
-      const absent = recordsArray.filter(r => r.status === 'absent').length;
+      const allClassRecords: ClassAttendanceRecord[] = [];
+      
+      // Extract all class records from the new structure
+      Object.values(records).forEach(dayRecord => {
+        if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
+          if ('timeSlot' in dayRecord) {
+            // Single class record (old format or single class day)
+            allClassRecords.push(dayRecord as ClassAttendanceRecord);
+          } else {
+            // Old format: convert to ClassAttendanceRecord for processing
+            allClassRecords.push({
+              status: dayRecord.status,
+              timeIn: dayRecord.timeIn,
+              timeOut: dayRecord.timeOut,
+              subject: dayRecord.subject || 'Unknown',
+              timeSlot: '00:00-00:00',
+              recordedAt: Date.now()
+            } as ClassAttendanceRecord);
+          }
+        } else if (typeof dayRecord === 'object' && dayRecord !== null) {
+          // Multiple classes in a day (new format)
+          Object.values(dayRecord as DayAttendanceRecord).forEach(classRecord => {
+            allClassRecords.push(classRecord);
+          });
+        }
+      });
+
+      const total = allClassRecords.length;
+      const present = allClassRecords.filter(r => r.status === 'present').length;
+      const late = allClassRecords.filter(r => r.status === 'late').length;
+      const absent = allClassRecords.filter(r => r.status === 'absent').length;
       
       const attendanceRate = total > 0 ? (present + late) / total : 0;
       const lateRate = total > 0 ? late / total : 0;
@@ -81,15 +107,28 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
       return acc;
     }, {} as Record<string, any>);
 
-    // Time-based trends
-    const dailyStats = Object.values(attendanceData).flatMap(records => 
-      Object.entries(records).map(([date, record]) => ({
-        date,
-        status: record.status
-      }))
-    );
+    // Time-based trends - extract from all class records
+    const allClassRecords: Array<{ date: string; status: string }> = [];
+    Object.values(attendanceData).forEach(records => {
+      Object.entries(records).forEach(([date, dayRecord]) => {
+        if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
+          if ('timeSlot' in dayRecord) {
+            // Single class record
+            allClassRecords.push({ date, status: (dayRecord as ClassAttendanceRecord).status });
+          } else {
+            // Old format
+            allClassRecords.push({ date, status: dayRecord.status });
+          }
+        } else if (typeof dayRecord === 'object' && dayRecord !== null) {
+          // Multiple classes in a day
+          Object.values(dayRecord as DayAttendanceRecord).forEach(classRecord => {
+            allClassRecords.push({ date, status: classRecord.status });
+          });
+        }
+      });
+    });
 
-    const weeklyTrends = dailyStats.reduce((acc, record) => {
+    const weeklyTrends = allClassRecords.reduce((acc, record) => {
       const date = new Date(record.date);
       const week = `Week ${Math.ceil(date.getDate() / 7)}`;
       
@@ -97,7 +136,7 @@ const AttendanceAnalytics: React.FC<AttendanceAnalyticsProps> = ({ attendanceDat
         acc[week] = { week, present: 0, absent: 0, late: 0 };
       }
       
-      acc[week][record.status]++;
+      acc[week][record.status as keyof typeof acc[typeof week]]++;
       return acc;
     }, {} as Record<string, any>);
 
