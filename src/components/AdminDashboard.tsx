@@ -9,6 +9,7 @@ import { Users, Calendar, Clock, TrendingUp } from 'lucide-react';
 import { AttendanceData } from '@/types/attendance';
 import { DummyDataStructure, DummyDataStudent } from '@/types/dummyData';
 import StudentManagement from './StudentManagement';
+import AttendanceAnalytics from './AttendanceAnalytics';
 import { toast } from '@/hooks/use-toast';
 import { database } from '@/config/firebase';
 import { ref, onValue, off } from 'firebase/database';
@@ -233,9 +234,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Tabs for different admin functions */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="attendance" disabled={!isConnected}>Attendance Records</TabsTrigger>
             <TabsTrigger value="students" disabled={!isConnected}>Student Management</TabsTrigger>
+            <TabsTrigger value="analytics" disabled={!isConnected}>AI Analytics</TabsTrigger>
             <TabsTrigger value="settings" disabled={!isConnected}>Settings</TabsTrigger>
           </TabsList>
 
@@ -302,6 +304,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <StudentManagement 
               pendingRFID={pendingRFID}
               onStudentRegistered={onRFIDRegistered}
+            />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AttendanceAnalytics 
+              attendanceData={attendanceData}
+              students={students}
             />
           </TabsContent>
 
