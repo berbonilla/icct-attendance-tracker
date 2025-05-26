@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar } from 'lucide-react';
-import { AttendanceRecord } from '@/types/attendance';
 import { database } from '@/config/firebase';
 import { ref, onValue, off } from 'firebase/database';
 
@@ -21,9 +20,22 @@ interface ScheduleSlot {
   subjectId: string | null;
 }
 
+interface ClassAttendanceRecord {
+  status: 'present' | 'absent' | 'late';
+  timeIn?: string;
+  timeOut?: string;
+  subject: string;
+  timeSlot: string;
+  recordedAt: number;
+}
+
+interface DayAttendanceRecord {
+  [classKey: string]: ClassAttendanceRecord;
+}
+
 const StudentDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const [attendanceData, setAttendanceData] = useState<Record<string, AttendanceRecord>>({});
+  const [attendanceData, setAttendanceData] = useState<Record<string, DayAttendanceRecord>>({});
   const [scheduleData, setScheduleData] = useState<{
     subjects: Record<string, Subject>;
     timeSlots: Record<string, ScheduleSlot[]>;
@@ -112,6 +124,8 @@ const StudentDashboard: React.FC = () => {
   }, [user?.id]);
 
   const getStatusBadge = (status: string) => {
+    if (!status) return null;
+    
     const variants: Record<string, string> = {
       present: 'bg-green-500 text-white',
       absent: 'bg-red text-white',
@@ -126,18 +140,27 @@ const StudentDashboard: React.FC = () => {
   };
 
   const calculateAttendanceStats = () => {
-    const records = Object.values(attendanceData);
-    const total = records.length;
-    const present = records.filter(r => r.status === 'present' || r.status === 'late').length;
-    const absent = records.filter(r => r.status === 'absent').length;
-    const late = records.filter(r => r.status === 'late').length;
+    const allRecords: ClassAttendanceRecord[] = [];
+    
+    // Flatten all attendance records from all dates
+    Object.values(attendanceData).forEach(dayRecord => {
+      Object.values(dayRecord).forEach(classRecord => {
+        allRecords.push(classRecord);
+      });
+    });
+    
+    const total = allRecords.length;
+    const present = allRecords.filter(r => r.status === 'present').length;
+    const absent = allRecords.filter(r => r.status === 'absent').length;
+    const late = allRecords.filter(r => r.status === 'late').length;
+    const presentAndLate = present + late;
     
     return {
       total,
-      present,
+      present: presentAndLate,
       absent,
       late,
-      percentage: total > 0 ? Math.round((present / total) * 100) : 0
+      percentage: total > 0 ? Math.round((presentAndLate / total) * 100) : 0
     };
   };
 
@@ -211,7 +234,7 @@ const StudentDashboard: React.FC = () => {
             <CardContent className="p-6">
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">{stats.present}</p>
-                <p className="text-sm text-gray-dark">Present Days</p>
+                <p className="text-sm text-gray-dark">Present Classes</p>
               </div>
             </CardContent>
           </Card>
@@ -219,7 +242,7 @@ const StudentDashboard: React.FC = () => {
             <CardContent className="p-6">
               <div className="text-center">
                 <p className="text-2xl font-bold text-red">{stats.absent}</p>
-                <p className="text-sm text-gray-dark">Absent Days</p>
+                <p className="text-sm text-gray-dark">Absent Classes</p>
               </div>
             </CardContent>
           </Card>
@@ -227,7 +250,7 @@ const StudentDashboard: React.FC = () => {
             <CardContent className="p-6">
               <div className="text-center">
                 <p className="text-2xl font-bold text-yellow-600">{stats.late}</p>
-                <p className="text-sm text-gray-dark">Late Days</p>
+                <p className="text-sm text-gray-dark">Late Classes</p>
               </div>
             </CardContent>
           </Card>
@@ -254,24 +277,31 @@ const StudentDashboard: React.FC = () => {
                   {Object.entries(attendanceData).length > 0 ? (
                     Object.entries(attendanceData)
                       .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-                      .map(([date, record]) => (
-                        <div key={date} className="flex justify-between items-center p-3 bg-gray-light rounded-lg">
-                          <div>
-                            <p className="font-semibold">{new Date(date).toLocaleDateString('en-US', { 
+                      .map(([date, dayRecord]) => (
+                        <div key={date} className="border border-gray-medium rounded-lg p-4">
+                          <h4 className="font-semibold text-dark-blue mb-3">
+                            {new Date(date).toLocaleDateString('en-US', { 
                               weekday: 'long', 
                               year: 'numeric', 
                               month: 'long', 
                               day: 'numeric' 
-                            })}</p>
-                            {record.timeIn && (
-                              <p className="text-sm text-gray-dark">
-                                Time In: {record.timeIn} 
-                                {record.timeOut && ` | Time Out: ${record.timeOut}`}
-                                {record.subject && ` | Subject: ${record.subject}`}
-                              </p>
-                            )}
+                            })}
+                          </h4>
+                          <div className="space-y-2">
+                            {Object.entries(dayRecord).map(([classKey, record]) => (
+                              <div key={classKey} className="flex justify-between items-center p-3 bg-gray-light rounded-lg">
+                                <div>
+                                  <p className="font-medium">{record.subject || 'Unknown Subject'}</p>
+                                  <p className="text-sm text-gray-dark">
+                                    {record.timeSlot || 'Unknown Time'}
+                                    {record.timeIn && ` | Time In: ${record.timeIn}`}
+                                    {record.timeOut && ` | Time Out: ${record.timeOut}`}
+                                  </p>
+                                </div>
+                                {getStatusBadge(record.status)}
+                              </div>
+                            ))}
                           </div>
-                          {getStatusBadge(record.status)}
                         </div>
                       ))
                   ) : (
