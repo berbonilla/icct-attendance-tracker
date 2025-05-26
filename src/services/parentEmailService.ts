@@ -39,12 +39,10 @@ Best regards,
 ICCT Attendance System`
     };
 
-    // Send email using EmailJS
-    // Note: You'll need to create a service and template in your EmailJS dashboard
-    // and replace 'your_service_id' and 'your_template_id' with actual values
+    // Send email using EmailJS with your actual service and template IDs
     const response = await emailjs.send(
-      'your_service_id', // Replace with your EmailJS service ID
-      'your_template_id', // Replace with your EmailJS template ID
+      'service_n24pbcp', // Your Gmail service ID
+      'template_98tti9a', // Your Auto-Reply template ID
       templateParams,
       'Db7C53JtWXxHZPunJog2k' // Your private key
     );

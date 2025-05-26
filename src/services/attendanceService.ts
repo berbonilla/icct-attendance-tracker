@@ -279,7 +279,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     // Create new attendance record for this specific class
     const classAttendanceRecord: ClassAttendanceRecord = {
       status: matchingClass.status,
-      timeIn: classStartTime, // Use class start time, not scan time
+      timeIn: currentTime, // Use actual scan time instead of class start time
       subject: matchingClass.subject,
       timeSlot: matchingClass.slot.timeSlot, // Use the ACTUAL class time slot like "07:00-08:00"
       recordedAt: classTimestamp, // Use class timestamp, not scan timestamp
