@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { database } from '@/config/firebase';
 import { ref, onValue, off } from 'firebase/database';
+import { processAttendance } from '@/services/attendanceService';
 
 // Type definitions for the database structure
 interface ScannedID {
@@ -162,7 +162,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAutoAdminMode(true);
       } else {
         console.log('✅ RFID is registered - Processing attendance');
-        // TODO: Add attendance processing logic here
+        
+        // Find the student ID for this RFID
+        const studentEntry = Object.entries(databaseData.students || {}).find(
+          ([, student]) => student.rfid === earliestRFID
+        );
+        
+        if (studentEntry) {
+          const [studentId] = studentEntry;
+          console.log('📋 Processing attendance for student ID:', studentId);
+          
+          // Process attendance asynchronously
+          processAttendance(studentId, data.timestamp).catch(error => {
+            console.error('❌ Failed to process attendance:', error);
+          });
+        }
       }
     }
   }, [databaseData, processedRFIDs]);
