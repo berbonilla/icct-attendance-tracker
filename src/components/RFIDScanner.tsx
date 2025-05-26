@@ -14,10 +14,27 @@ interface ScannedRFIDData {
   processed: boolean;
 }
 
+interface StudentData {
+  name: string;
+  course: string;
+  year: string;
+  section: string;
+  rfid?: string;
+}
+
+interface DatabaseData {
+  ScannedIDs: Record<string, ScannedRFIDData>;
+  students: Record<string, StudentData>;
+  adminUsers: Record<string, any>;
+  schedules: Record<string, any>;
+  attendanceRecords: Record<string, any>;
+  absenteeAlerts: Record<string, any>;
+}
+
 const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   const [scannedRFIDs, setScannedRFIDs] = useState<Record<string, ScannedRFIDData>>({});
   const [currentRFID, setCurrentRFID] = useState<string>('');
-  const [students, setStudents] = useState<Record<string, any>>({});
+  const [students, setStudents] = useState<Record<string, StudentData>>({});
   const [lastScanTime, setLastScanTime] = useState<number>(0);
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
   const [scannerStatus, setScannerStatus] = useState<'idle' | 'scanning' | 'processing'>('idle');
@@ -27,7 +44,8 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
     const loadData = async () => {
       setScannerStatus('scanning');
       try {
-        const dummyData = await import('../data/updatedDummyData.json');
+        const dummyDataModule = await import('../data/updatedDummyData.json');
+        const dummyData = dummyDataModule.default as DatabaseData;
         setStudents(dummyData.students || {});
         
         console.log('Scanner: Loading scanned RFIDs...', dummyData.ScannedIDs);
@@ -123,48 +141,39 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
     
     console.log('Simulating RFID scan:', { rfid: randomRFID, timestamp });
     
-    try {
-      // Load current data
-      const dummyDataModule = await import('../data/updatedDummyData.json');
-      const currentData = { ...dummyDataModule.default };
-      
-      // Add the new scanned RFID
-      const newScannedRFIDs = {
-        ...currentData.ScannedIDs,
-        [randomRFID]: {
-          timestamp,
-          processed: false
-        }
-      };
-      
-      // Update local state immediately for responsive UI
-      setScannedRFIDs(newScannedRFIDs);
-      setCurrentRFID(randomRFID);
-      setLastScanTime(timestamp);
-      
-      console.log('Simulated scan - Added RFID to scanned list:', randomRFID);
-      console.log('Simulated scan - Current students:', Object.keys(students).length);
-      
-      // Check if RFID is registered
-      const studentEntries = Object.values(students);
-      const isRegistered = studentEntries.length > 0 && studentEntries.some(student => student.rfid === randomRFID);
-      
-      console.log('Simulated scan - Registration check:', { 
-        rfid: randomRFID, 
-        isRegistered,
-        studentCount: studentEntries.length,
-        availableRFIDs: studentEntries.map(s => s.rfid)
-      });
-      
-      if (!isRegistered) {
-        console.log('Simulated scan - Unregistered RFID, triggering admin mode');
-        setPendingRFID(randomRFID);
-        setAutoAdminMode(true);
-      } else {
-        console.log('Simulated scan - RFID is registered');
-      }
-    } catch (error) {
-      console.error('Error simulating RFID scan:', error);
+    // Update local state immediately for responsive UI
+    const newScannedData: ScannedRFIDData = {
+      timestamp,
+      processed: false
+    };
+    
+    setScannedRFIDs(prev => ({
+      ...prev,
+      [randomRFID]: newScannedData
+    }));
+    setCurrentRFID(randomRFID);
+    setLastScanTime(timestamp);
+    
+    console.log('Simulated scan - Added RFID to scanned list:', randomRFID);
+    console.log('Simulated scan - Current students:', Object.keys(students).length);
+    
+    // Check if RFID is registered
+    const studentEntries = Object.values(students);
+    const isRegistered = studentEntries.length > 0 && studentEntries.some(student => student.rfid === randomRFID);
+    
+    console.log('Simulated scan - Registration check:', { 
+      rfid: randomRFID, 
+      isRegistered,
+      studentCount: studentEntries.length,
+      availableRFIDs: studentEntries.map(s => s.rfid)
+    });
+    
+    if (!isRegistered) {
+      console.log('Simulated scan - Unregistered RFID, triggering admin mode');
+      setPendingRFID(randomRFID);
+      setAutoAdminMode(true);
+    } else {
+      console.log('Simulated scan - RFID is registered');
     }
   };
 
