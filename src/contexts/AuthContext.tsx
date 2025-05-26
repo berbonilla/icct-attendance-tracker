@@ -1,6 +1,37 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+// Type definitions for the database structure
+interface ScannedID {
+  timestamp: number;
+  processed: boolean;
+}
+
+interface Student {
+  name: string;
+  rfid: string;
+  email: string;
+  course: string;
+  year: string;
+  section: string;
+}
+
+interface AdminUser {
+  name: string;
+  password: string;
+  role: string;
+  email: string;
+}
+
+interface DatabaseData {
+  ScannedIDs: Record<string, ScannedID>;
+  students: Record<string, Student>;
+  adminUsers: Record<string, AdminUser>;
+  schedules: Record<string, any>;
+  attendanceRecords: Record<string, any>;
+  absenteeAlerts: Record<string, any>;
+}
+
 interface AuthContextType {
   user: any;
   userType: 'student' | 'admin' | null;
@@ -36,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const systemReset = () => {
     console.log('🔄 System Reset: Clearing all states and cache');
     
-    // Clear localStorage
+    // Clear localStorage and sessionStorage
     localStorage.clear();
     sessionStorage.clear();
     
@@ -68,7 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkScannedRFIDs = async () => {
       try {
         console.log('🔍 RFID Scanner: Checking for new scans...');
-        const dummyData = await import('../data/emptyDatabase.json');
+        const dummyDataModule = await import('../data/emptyDatabase.json');
+        const dummyData = dummyDataModule.default as DatabaseData;
         
         console.log('📋 Database State:', {
           scannedIDs: Object.keys(dummyData.ScannedIDs || {}).length,
@@ -140,10 +172,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('🔐 Authentication attempt for:', id);
     
     try {
-      const dummyData = await import('../data/emptyDatabase.json');
+      const dummyDataModule = await import('../data/emptyDatabase.json');
+      const dummyData = dummyDataModule.default as DatabaseData;
       
       if (id.startsWith('TA')) {
-        const student = dummyData.students[id as keyof typeof dummyData.students];
+        const student = dummyData.students[id];
         if (student) {
           console.log('✅ Student authentication successful');
           setUser({ id, ...student });
@@ -153,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('❌ Student not found');
         }
       } else {
-        const admin = dummyData.adminUsers[id as keyof typeof dummyData.adminUsers];
+        const admin = dummyData.adminUsers[id];
         if (admin && password === admin.password) {
           console.log('✅ Admin authentication successful');
           setUser({ id, ...admin });
