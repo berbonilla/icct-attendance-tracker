@@ -1,3 +1,17 @@
+
+export interface ClassAttendanceRecord {
+  status: 'present' | 'absent' | 'late';
+  timeIn?: string;
+  timeOut?: string;
+  subject: string;
+  timeSlot: string;
+  recordedAt: number;
+}
+
+export interface DayAttendanceRecord {
+  [classKey: string]: ClassAttendanceRecord;
+}
+
 export interface AttendanceRecord {
   status: 'present' | 'absent' | 'late';
   timeIn?: string;
@@ -18,4 +32,4 @@ export interface AdminUser {
   password: string;
 }
 
-export type AttendanceData = Record<string, Record<string, AttendanceRecord>>;
+export type AttendanceData = Record<string, Record<string, AttendanceRecord | DayAttendanceRecord>>;

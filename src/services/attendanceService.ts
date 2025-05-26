@@ -12,11 +12,17 @@ interface StudentSchedule {
   [key: string]: any; // for days of week
 }
 
-interface AttendanceRecord {
+interface ClassAttendanceRecord {
   status: 'present' | 'absent' | 'late';
   timeIn?: string;
   timeOut?: string;
-  subject?: string;
+  subject: string;
+  timeSlot: string;
+  recordedAt: number;
+}
+
+interface DayAttendanceRecord {
+  [classKey: string]: ClassAttendanceRecord;
 }
 
 const parseTime = (timeString: string): { hours: number; minutes: number } => {
@@ -31,6 +37,10 @@ const createDateWithTime = (baseDate: Date, timeString: string): Date => {
   return newDate;
 };
 
+const generateClassKey = (timeSlot: string, subjectId: string): string => {
+  return `${timeSlot}_${subjectId}`;
+};
+
 export const processAttendance = async (studentId: string, scannedTime: number): Promise<void> => {
   console.log('🎯 Processing attendance for student:', studentId, 'at:', new Date(scannedTime));
 
@@ -38,9 +48,9 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     // Get current date and time info
     const scanDate = new Date(scannedTime);
     const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-    const currentDay = dayNames[scanDate.getDay()]; // Get day abbreviation correctly
-    const currentTime = scanDate.toTimeString().slice(0, 5); // HH:MM format
-    const dateKey = scanDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentDay = dayNames[scanDate.getDay()];
+    const currentTime = scanDate.toTimeString().slice(0, 5);
+    const dateKey = scanDate.toISOString().split('T')[0];
 
     console.log('📅 Scan details:', {
       day: currentDay,
@@ -79,9 +89,18 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     console.log('📚 Day schedule:', daySchedule);
 
+    // Get existing attendance records for this day
+    const attendanceRef = ref(database, `attendanceRecords/${studentId}/${dateKey}`);
+    const existingAttendanceSnapshot = await get(attendanceRef);
+    const existingAttendance = (existingAttendanceSnapshot.val() as DayAttendanceRecord) || {};
+
+    console.log('📖 Existing attendance records for today:', existingAttendance);
+
     // Find the current or next class
     let attendanceStatus: 'present' | 'late' | 'absent' = 'absent';
     let currentSubject = '';
+    let matchedTimeSlot = '';
+    let matchedSubjectId = '';
 
     // Convert schedule slots to array and sort by time
     const slots: ScheduleSlot[] = Object.values(daySchedule);
@@ -120,6 +139,8 @@ export const processAttendance = async (studentId: string, scannedTime: number):
         // Get subject info
         const subject = scheduleData.subjects[slot.subjectId];
         currentSubject = subject ? `${subject.code} - ${subject.name}` : slot.subjectId;
+        matchedTimeSlot = slot.timeSlot;
+        matchedSubjectId = slot.subjectId;
 
         // Determine attendance status
         if (scanDate <= classStart) {
@@ -136,18 +157,55 @@ export const processAttendance = async (studentId: string, scannedTime: number):
       }
     }
 
-    // Create attendance record
-    const attendanceRecord: AttendanceRecord = {
+    if (!matchedTimeSlot || !matchedSubjectId) {
+      console.log('❌ No matching class found for scan time');
+      return;
+    }
+
+    // Generate unique key for this class
+    const classKey = generateClassKey(matchedTimeSlot, matchedSubjectId);
+
+    // Check if attendance for this specific class already exists
+    if (existingAttendance[classKey]) {
+      console.log('⚠️ Attendance already recorded for this class:', {
+        classKey,
+        existingRecord: existingAttendance[classKey]
+      });
+      
+      // Don't overwrite existing attendance for this class
+      // Mark the scanned RFID as processed but don't update attendance
+      const student = await getStudentByRFID(studentId);
+      if (student) {
+        const processedRef = ref(database, `ScannedIDs/${student.rfid}/processed`);
+        await set(processedRef, true);
+        console.log('✅ RFID marked as processed (attendance already exists)');
+      }
+      return;
+    }
+
+    // Create new attendance record for this specific class
+    const classAttendanceRecord: ClassAttendanceRecord = {
       status: attendanceStatus,
       timeIn: currentTime,
-      subject: currentSubject
+      subject: currentSubject,
+      timeSlot: matchedTimeSlot,
+      recordedAt: scannedTime
     };
 
-    console.log('📝 Creating attendance record:', attendanceRecord);
+    // Merge with existing attendance records for the day
+    const updatedDayAttendance = {
+      ...existingAttendance,
+      [classKey]: classAttendanceRecord
+    };
 
-    // Save to Firebase
-    const attendanceRef = ref(database, `attendanceRecords/${studentId}/${dateKey}`);
-    await set(attendanceRef, attendanceRecord);
+    console.log('📝 Creating attendance record:', {
+      classKey,
+      record: classAttendanceRecord,
+      fullDayAttendance: updatedDayAttendance
+    });
+
+    // Save updated attendance records to Firebase
+    await set(attendanceRef, updatedDayAttendance);
 
     console.log('✅ Attendance record saved successfully');
 
