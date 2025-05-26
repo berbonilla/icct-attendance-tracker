@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Trash2, GripVertical } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Clock, Trash2, GripVertical, Plus } from 'lucide-react';
 
 interface Subject {
   id: string;
@@ -28,10 +29,12 @@ const DragDropSchedule: React.FC<DragDropScheduleProps> = ({ subjects, schedule,
   const [draggedSubject, setDraggedSubject] = useState<Subject | null>(null);
   const [draggedSlot, setDraggedSlot] = useState<{ day: string; slotId: string } | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
+  const [customTimeSlots, setCustomTimeSlots] = useState<Record<string, { startTime: string; endTime: string }>>({});
+  const [showCustomTimeInput, setShowCustomTimeInput] = useState<Record<string, boolean>>({});
   
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   
-  const timeSlots = [
+  const defaultTimeSlots = [
     '07:00-08:00', '08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00',
     '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00',
     '17:00-18:00', '18:00-19:00', '19:00-20:00'
@@ -139,12 +142,64 @@ const DragDropSchedule: React.FC<DragDropScheduleProps> = ({ subjects, schedule,
     onScheduleChange(newSchedule);
   };
 
+  const addCustomTimeSlot = (day: string) => {
+    const customTime = customTimeSlots[day];
+    if (!customTime || !customTime.startTime || !customTime.endTime) return;
+
+    const timeSlot = `${customTime.startTime}-${customTime.endTime}`;
+    const newSchedule = { ...schedule };
+    
+    if (!newSchedule[day]) {
+      newSchedule[day] = [];
+    }
+
+    // Check if this time slot already exists
+    const existingSlot = newSchedule[day].find(slot => slot.timeSlot === timeSlot);
+    if (existingSlot) return;
+
+    newSchedule[day].push({
+      id: `${day}-${timeSlot}-${Date.now()}`,
+      timeSlot,
+      subjectId: null
+    });
+
+    newSchedule[day].sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
+    onScheduleChange(newSchedule);
+
+    // Reset custom time input
+    setCustomTimeSlots(prev => ({
+      ...prev,
+      [day]: { startTime: '', endTime: '' }
+    }));
+    setShowCustomTimeInput(prev => ({
+      ...prev,
+      [day]: false
+    }));
+  };
+
   const getSubjectForSlot = (subjectId: string | null) => {
     return subjects.find(s => s.id === subjectId);
   };
 
   const getTotalClasses = () => {
     return Object.values(schedule).reduce((total, slots) => total + slots.length, 0);
+  };
+
+  const validateTime = (time: string) => {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    return timeRegex.test(time);
+  };
+
+  const isValidTimeRange = (startTime: string, endTime: string) => {
+    if (!validateTime(startTime) || !validateTime(endTime)) return false;
+    
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    return endMinutes > startMinutes;
   };
 
   return (
@@ -201,7 +256,7 @@ const DragDropSchedule: React.FC<DragDropScheduleProps> = ({ subjects, schedule,
                       draggable
                       onDragStart={(e) => handleSlotDragStart(e, day, slot.id)}
                       className={`flex items-center justify-between p-2 rounded text-sm cursor-move hover:shadow-md transition-all duration-200 ${
-                        subject ? subject.color : 'bg-gray-100'
+                        subject ? subject.color : 'bg-gray-100 border-2 border-dashed border-gray-300'
                       }`}
                     >
                       <div className="flex items-center">
@@ -211,6 +266,11 @@ const DragDropSchedule: React.FC<DragDropScheduleProps> = ({ subjects, schedule,
                           {subject && (
                             <span className="ml-2 font-medium">
                               {subject.code} - {subject.name}
+                            </span>
+                          )}
+                          {!subject && (
+                            <span className="ml-2 text-gray-500 italic">
+                              Drop subject here
                             </span>
                           )}
                         </div>
@@ -227,10 +287,75 @@ const DragDropSchedule: React.FC<DragDropScheduleProps> = ({ subjects, schedule,
                   );
                 })}
 
-                {/* Drop zones for new time slots */}
+                {/* Custom time slot input */}
+                <div className="space-y-2 pt-2 border-t">
+                  {!showCustomTimeInput[day] ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCustomTimeInput(prev => ({ ...prev, [day]: true }))}
+                      className="w-full text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Custom Time Slot
+                    </Button>
+                  ) : (
+                    <div className="space-y-2 p-2 bg-blue-50 rounded border">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Start Time</Label>
+                          <Input
+                            type="time"
+                            value={customTimeSlots[day]?.startTime || ''}
+                            onChange={(e) => setCustomTimeSlots(prev => ({
+                              ...prev,
+                              [day]: { ...prev[day], startTime: e.target.value }
+                            }))}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">End Time</Label>
+                          <Input
+                            type="time"
+                            value={customTimeSlots[day]?.endTime || ''}
+                            onChange={(e) => setCustomTimeSlots(prev => ({
+                              ...prev,
+                              [day]: { ...prev[day], endTime: e.target.value }
+                            }))}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          onClick={() => addCustomTimeSlot(day)}
+                          disabled={!customTimeSlots[day] || !isValidTimeRange(customTimeSlots[day].startTime, customTimeSlots[day].endTime)}
+                          className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setShowCustomTimeInput(prev => ({ ...prev, [day]: false }));
+                            setCustomTimeSlots(prev => ({ ...prev, [day]: { startTime: '', endTime: '' } }));
+                          }}
+                          className="flex-1 h-7 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Drop zones for default time slots */}
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500 mt-2">Drop subjects on time slots:</p>
-                  {timeSlots.map(timeSlot => {
+                  <p className="text-xs text-gray-500 mt-2">Or drop subjects on preset time slots:</p>
+                  {defaultTimeSlots.map(timeSlot => {
                     const hasSlot = schedule[day]?.some(slot => slot.timeSlot === timeSlot);
                     if (hasSlot) return null;
                     

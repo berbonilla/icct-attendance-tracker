@@ -19,6 +19,18 @@ interface AttendanceRecord {
   subject?: string;
 }
 
+const parseTime = (timeString: string): { hours: number; minutes: number } => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return { hours, minutes };
+};
+
+const createDateWithTime = (baseDate: Date, timeString: string): Date => {
+  const { hours, minutes } = parseTime(timeString);
+  const newDate = new Date(baseDate);
+  newDate.setHours(hours, minutes, 0, 0);
+  return newDate;
+};
+
 export const processAttendance = async (studentId: string, scannedTime: number): Promise<void> => {
   console.log('🎯 Processing attendance for student:', studentId, 'at:', new Date(scannedTime));
 
@@ -73,24 +85,23 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
     // Convert schedule slots to array and sort by time
     const slots: ScheduleSlot[] = Object.values(daySchedule);
-    slots.sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
+    slots.sort((a, b) => {
+      const timeA = a.timeSlot.split('-')[0];
+      const timeB = b.timeSlot.split('-')[0];
+      return timeA.localeCompare(timeB);
+    });
 
     console.log('🕐 Available time slots:', slots.map(s => s.timeSlot));
 
     for (const slot of slots) {
       if (!slot.subjectId) continue;
 
-      // Parse time slot (assuming format like "08:00-09:30")
+      // Parse time slot (supporting flexible formats like "08:15-10:30")
       const [startTime, endTime] = slot.timeSlot.split('-');
-      const [startHour, startMin] = startTime.split(':').map(Number);
-      const [endHour, endMin] = endTime.split(':').map(Number);
-
-      // Create Date objects for comparison
-      const classStart = new Date(scanDate);
-      classStart.setHours(startHour, startMin, 0, 0);
-
-      const classEnd = new Date(scanDate);
-      classEnd.setHours(endHour, endMin, 0, 0);
+      
+      // Create Date objects for comparison with flexible time support
+      const classStart = createDateWithTime(scanDate, startTime);
+      const classEnd = createDateWithTime(scanDate, endTime);
 
       // Calculate time boundaries
       const late15Min = new Date(classStart.getTime() + 15 * 60 * 1000);
@@ -98,6 +109,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
 
       console.log('⏰ Checking slot:', slot.timeSlot, {
         classStart: classStart.toTimeString().slice(0, 5),
+        classEnd: classEnd.toTimeString().slice(0, 5),
         late15Min: late15Min.toTimeString().slice(0, 5),
         late30Min: late30Min.toTimeString().slice(0, 5),
         scanTime: scanDate.toTimeString().slice(0, 5)
