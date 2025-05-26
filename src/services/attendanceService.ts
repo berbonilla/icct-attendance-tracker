@@ -39,7 +39,7 @@ const determineAttendanceStatus = (
   classStartMinutes: number, 
   classEndMinutes: number
 ): 'present' | 'late' | 'absent' => {
-  console.log('🕐 Determining attendance status:', {
+  console.log('🕐 Determining attendance status with NEW LOGIC:', {
     scanTimeMinutes,
     classStartMinutes,
     classEndMinutes,
@@ -48,40 +48,38 @@ const determineAttendanceStatus = (
     classEnd: `${Math.floor(classEndMinutes / 60)}:${(classEndMinutes % 60).toString().padStart(2, '0')}`
   });
 
-  // Grace period: 15 minutes before class starts (early arrival)
-  const graceStart = classStartMinutes - 15;
+  // PRESENT: Scan within 15 minutes before class start OR within 15 minutes after class start
+  const presentWindowStart = classStartMinutes - 15; // 15 minutes before class
+  const presentWindowEnd = classStartMinutes + 15;   // 15 minutes after class starts
   
-  // Late threshold: 15 minutes after class starts
-  const lateThreshold = classStartMinutes + 15;
+  // LATE: Scan between 15-30 minutes after class start
+  const lateWindowStart = classStartMinutes + 15;    // 15 minutes after class starts
+  const lateWindowEnd = classStartMinutes + 30;      // 30 minutes after class starts
   
-  // Class ends - students should be present during class time
-  const classEndTime = classEndMinutes;
-
-  console.log('📏 Attendance thresholds:', {
-    graceStart: `${Math.floor(graceStart / 60)}:${(graceStart % 60).toString().padStart(2, '0')}`,
-    classStart: `${Math.floor(classStartMinutes / 60)}:${(classStartMinutes % 60).toString().padStart(2, '0')}`,
-    lateThreshold: `${Math.floor(lateThreshold / 60)}:${(lateThreshold % 60).toString().padStart(2, '0')}`,
-    classEnd: `${Math.floor(classEndTime / 60)}:${(classEndTime % 60).toString().padStart(2, '0')}`
+  console.log('📏 NEW Attendance windows:', {
+    presentWindow: `${Math.floor(presentWindowStart / 60)}:${(presentWindowStart % 60).toString().padStart(2, '0')} - ${Math.floor(presentWindowEnd / 60)}:${(presentWindowEnd % 60).toString().padStart(2, '0')}`,
+    lateWindow: `${Math.floor(lateWindowStart / 60)}:${(lateWindowStart % 60).toString().padStart(2, '0')} - ${Math.floor(lateWindowEnd / 60)}:${(lateWindowEnd % 60).toString().padStart(2, '0')}`,
+    absentAfter: `${Math.floor(lateWindowEnd / 60)}:${(lateWindowEnd % 60).toString().padStart(2, '0')}`
   });
 
-  // PRESENT: Scan within grace period (15 min before) to 15 min after class starts
-  if (scanTimeMinutes >= graceStart && scanTimeMinutes <= lateThreshold) {
-    console.log('✅ Status: PRESENT (scanned within acceptable timeframe)');
+  // PRESENT: Within 15 minutes before or after class start
+  if (scanTimeMinutes >= presentWindowStart && scanTimeMinutes <= presentWindowEnd) {
+    console.log('✅ Status: PRESENT (scanned within 15 minutes of class start)');
     return 'present';
   }
   
-  // LATE: Scan between 15 minutes after class starts and class end time
-  else if (scanTimeMinutes > lateThreshold && scanTimeMinutes <= classEndTime) {
-    console.log('⚠️ Status: LATE (scanned during class but after 15-minute grace period)');
+  // LATE: Between 15-30 minutes after class start
+  else if (scanTimeMinutes > lateWindowStart && scanTimeMinutes <= lateWindowEnd) {
+    console.log('⚠️ Status: LATE (scanned 15-30 minutes after class start)');
     return 'late';
   }
   
-  // ABSENT: Scan after class ends or too early (more than 15 min before class)
+  // ABSENT: Outside all acceptable windows
   else {
-    if (scanTimeMinutes > classEndTime) {
-      console.log('❌ Status: ABSENT (scanned after class ended)');
+    if (scanTimeMinutes > lateWindowEnd) {
+      console.log('❌ Status: ABSENT (scanned more than 30 minutes after class start)');
     } else {
-      console.log('❌ Status: ABSENT (scanned too early - more than 15 minutes before class)');
+      console.log('❌ Status: ABSENT (scanned more than 15 minutes before class start)');
     }
     return 'absent';
   }
@@ -125,7 +123,7 @@ const findMatchingClass = (
     // Calculate how close the scan time is to the class start time
     const timeDifference = Math.abs(scanTimeMinutes - classStartMinutes);
     
-    // Only consider classes that are within a reasonable timeframe (up to 2 hours before or after)
+    // Only consider classes within a reasonable window (2 hours before to 2 hours after class start)
     const maxTimeWindow = 120; // 2 hours in minutes
     
     if (timeDifference <= maxTimeWindow) {
@@ -138,10 +136,10 @@ const findMatchingClass = (
         slot: slot.timeSlot,
         subject: subjectName,
         status,
-        timeDifference: `${timeDifference} minutes`
+        timeDifference: `${timeDifference} minutes from class start`
       });
 
-      // Prefer the class with the smallest time difference (closest to scan time)
+      // Always prefer the closest class by time difference
       if (!bestMatch || timeDifference < bestMatch.timeDifference) {
         bestMatch = {
           slot,
@@ -150,6 +148,11 @@ const findMatchingClass = (
           timeDifference
         };
       }
+    } else {
+      console.log('⏰ Class too far from scan time:', {
+        slot: slot.timeSlot,
+        timeDifference: `${timeDifference} minutes (exceeds ${maxTimeWindow} minute window)`
+      });
     }
   }
 
@@ -209,7 +212,7 @@ export const processAttendance = async (studentId: string, scannedTime: number):
     const daySchedule = scheduleData[currentDay];
     console.log('📅 Day schedule for', currentDay, ':', daySchedule);
 
-    if (!daySchedule) {
+    if (!daySchedule || Object.keys(daySchedule).length === 0) {
       console.log('📅 No classes scheduled for', currentDay);
       await recordGeneralAttendance(studentId, scanDate, currentTime, dateKey, scannedTime);
       await markRFIDAsProcessed(studentId);
