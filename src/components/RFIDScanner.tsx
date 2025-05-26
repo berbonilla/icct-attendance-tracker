@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Scan, UserPlus, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface RFIDScannerProps {
   onRegisterRFID: (rfidId: string) => void;
@@ -39,6 +40,7 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   const [processedRFIDs, setProcessedRFIDs] = useState<Set<string>>(new Set());
   const [scannerStatus, setScannerStatus] = useState<'idle' | 'scanning' | 'processing'>('idle');
   const { setAutoAdminMode, setPendingRFID } = useAuth();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const loadData = async () => {
@@ -208,55 +210,65 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-dark-blue flex items-center">
-          <Scan className="w-5 h-5 mr-2" />
+        <CardTitle className={`text-dark-blue flex items-center ${isMobile ? 'text-lg' : 'text-xl'}`}>
+          <Scan className={`mr-2 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
           RFID Scanner
-          <div className="ml-auto flex items-center space-x-2">
+          <div className={`ml-auto flex items-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
             {getScannerStatusIcon()}
-            <span className="text-sm font-normal">{getScannerStatusText()}</span>
+            <span className={`font-normal ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              {isMobile ? 'Scanning...' : getScannerStatusText()}
+            </span>
           </div>
         </CardTitle>
-        <CardDescription>
-          Scanning every 5 seconds for new RFID inputs
+        <CardDescription className={isMobile ? 'text-xs' : 'text-sm'}>
+          {isMobile ? 'Scanning for RFIDs' : 'Scanning every 5 seconds for new RFID inputs'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className={`space-y-4 ${isMobile ? 'p-4' : 'p-6'}`}>
         {/* Simulate RFID Scan Button */}
         <Button 
           onClick={simulateRFIDScan}
-          className="w-full bg-light-blue hover:bg-dark-blue text-white"
+          className={`w-full bg-light-blue hover:bg-dark-blue text-white ${isMobile ? 'h-12 text-base' : ''}`}
         >
-          <Scan className="w-4 h-4 mr-2" />
-          Simulate RFID Scan
+          <Scan className={`mr-2 ${isMobile ? 'w-4 h-4' : 'w-4 h-4'}`} />
+          {isMobile ? 'Simulate Scan' : 'Simulate RFID Scan'}
         </Button>
 
         {/* Current Processing RFID */}
         {currentRFID && (
           <div className="space-y-3">
-            <h3 className="font-semibold text-dark-blue">Currently Processing</h3>
+            <h3 className={`font-semibold text-dark-blue ${isMobile ? 'text-sm' : 'text-base'}`}>
+              Currently Processing
+            </h3>
             
             <Card className={`border ${isRFIDRegistered(currentRFID) ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-mono text-sm">{formatRFIDDisplay(currentRFID)}</p>
-                    <p className="text-xs text-gray-dark">
-                      <Clock className="w-3 h-3 inline mr-1" />
+              <CardContent className={`p-3 ${isMobile ? 'p-2' : ''}`}>
+                <div className={`flex items-center justify-between ${isMobile ? 'flex-col space-y-2' : ''}`}>
+                  <div className={isMobile ? 'text-center' : ''}>
+                    <p className={`font-mono ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      {formatRFIDDisplay(currentRFID)}
+                    </p>
+                    <p className={`text-gray-dark ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                      <Clock className={`inline mr-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
                       {new Date(lastScanTime).toLocaleString()}
                     </p>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className={`flex items-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
                     {isRFIDRegistered(currentRFID) ? (
-                      <Badge className="bg-green-500 text-white">Registered</Badge>
+                      <Badge className={`bg-green-500 text-white ${isMobile ? 'text-xs px-2 py-1' : ''}`}>
+                        Registered
+                      </Badge>
                     ) : (
                       <>
-                        <Badge className="bg-yellow-500 text-white">Unregistered</Badge>
+                        <Badge className={`bg-yellow-500 text-white ${isMobile ? 'text-xs px-2 py-1' : ''}`}>
+                          {isMobile ? 'New' : 'Unregistered'}
+                        </Badge>
                         <Button
-                          size="sm"
+                          size={isMobile ? "sm" : "sm"}
                           onClick={() => onRegisterRFID(currentRFID)}
-                          className="bg-dark-blue hover:bg-light-blue text-white"
+                          className={`bg-dark-blue hover:bg-light-blue text-white ${isMobile ? 'text-xs px-2 py-1' : ''}`}
                         >
-                          <UserPlus className="w-3 h-3 mr-1" />
+                          <UserPlus className={`mr-1 ${isMobile ? 'w-2 h-2' : 'w-3 h-3'}`} />
                           Register
                         </Button>
                       </>
@@ -271,17 +283,21 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
         {/* Recent Scans History */}
         {getScannedRFIDsList().length > 0 && (
           <div className="space-y-3">
-            <h3 className="font-semibold text-dark-blue">Recent Scans</h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <h3 className={`font-semibold text-dark-blue ${isMobile ? 'text-sm' : 'text-base'}`}>
+              Recent Scans
+            </h3>
+            <div className={`space-y-2 overflow-y-auto ${isMobile ? 'max-h-32' : 'max-h-48'}`}>
               {getScannedRFIDsList().map(([rfid, data]) => (
-                <div key={`${rfid}-${data.timestamp}`} className="text-xs p-2 bg-gray-50 rounded">
-                  <div className="flex justify-between items-center">
-                    <span className="font-mono">{formatRFIDDisplay(rfid)}</span>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant={data.processed ? "secondary" : "default"} className="text-xs">
+                <div key={`${rfid}-${data.timestamp}`} className={`p-2 bg-gray-50 rounded ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                  <div className={`flex justify-between items-center ${isMobile ? 'flex-col space-y-1' : ''}`}>
+                    <span className={`font-mono ${isMobile ? 'text-xs' : ''}`}>
+                      {formatRFIDDisplay(rfid)}
+                    </span>
+                    <div className={`flex items-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
+                      <Badge variant={data.processed ? "secondary" : "default"} className={isMobile ? 'text-xs px-1 py-0.5' : 'text-xs'}>
                         {data.processed ? "Processed" : "Pending"}
                       </Badge>
-                      <span className="text-gray-500">
+                      <span className={`text-gray-500 ${isMobile ? 'text-xs' : ''}`}>
                         {new Date(data.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
@@ -295,40 +311,56 @@ const RFIDScanner: React.FC<RFIDScannerProps> = ({ onRegisterRFID }) => {
         {/* Status when no scans */}
         {Object.keys(scannedRFIDs).length === 0 && (
           <div className="text-center py-4">
-            <p className="text-gray-dark text-sm">No RFID scanned yet</p>
-            <p className="text-xs text-gray-500 mt-1">Scanner is monitoring database every 5 seconds</p>
+            <p className={`text-gray-dark ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              No RFID scanned yet
+            </p>
+            <p className={`text-gray-500 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
+              {isMobile ? 'Monitoring database' : 'Scanner is monitoring database every 5 seconds'}
+            </p>
           </div>
         )}
 
         {/* Validation Status */}
         <div className="border-t pt-3 mt-4">
-          <h4 className="text-sm font-semibold text-dark-blue mb-2">System Status</h4>
-          <div className="space-y-1 text-xs">
+          <h4 className={`font-semibold text-dark-blue mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+            System Status
+          </h4>
+          <div className={`space-y-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
             <div className="flex justify-between">
-              <span>Database Connection:</span>
-              <Badge variant="outline" className="text-green-600">Connected</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Students Loaded:</span>
-              <Badge variant="outline">{Object.keys(students).length}</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Scanned RFIDs:</span>
-              <Badge variant="outline">{Object.keys(scannedRFIDs).length}</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Scan Interval:</span>
-              <Badge variant="outline">5 seconds</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Scanner Status:</span>
-              <Badge variant="outline" className={
-                scannerStatus === 'idle' ? 'text-green-600' :
-                scannerStatus === 'scanning' ? 'text-blue-600' : 'text-yellow-600'
-              }>
-                {scannerStatus.charAt(0).toUpperCase() + scannerStatus.slice(1)}
+              <span>Database:</span>
+              <Badge variant="outline" className={`text-green-600 ${isMobile ? 'text-xs px-1 py-0.5' : ''}`}>
+                Connected
               </Badge>
             </div>
+            <div className="flex justify-between">
+              <span>Students:</span>
+              <Badge variant="outline" className={isMobile ? 'text-xs px-1 py-0.5' : ''}>
+                {Object.keys(students).length}
+              </Badge>
+            </div>
+            <div className="flex justify-between">
+              <span>Scanned:</span>
+              <Badge variant="outline" className={isMobile ? 'text-xs px-1 py-0.5' : ''}>
+                {Object.keys(scannedRFIDs).length}
+              </Badge>
+            </div>
+            {!isMobile && (
+              <>
+                <div className="flex justify-between">
+                  <span>Scan Interval:</span>
+                  <Badge variant="outline">5 seconds</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Scanner Status:</span>
+                  <Badge variant="outline" className={
+                    scannerStatus === 'idle' ? 'text-green-600' :
+                    scannerStatus === 'scanning' ? 'text-blue-600' : 'text-yellow-600'
+                  }>
+                    {scannerStatus.charAt(0).toUpperCase() + scannerStatus.slice(1)}
+                  </Badge>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
