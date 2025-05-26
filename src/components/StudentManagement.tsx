@@ -220,12 +220,18 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
 
   const deleteScannedRFID = async (rfid: string) => {
     try {
-      console.log('Deleting scanned RFID from Firebase:', rfid);
+      console.log('🗑️ Deleting scanned RFID from Firebase:', rfid);
       const scannedIDRef = ref(database, `ScannedIDs/${rfid}`);
       await remove(scannedIDRef);
-      console.log('✅ RFID deleted from Firebase ScannedIDs:', rfid);
+      console.log('✅ RFID successfully deleted from Firebase ScannedIDs:', rfid);
+      
+      // Also mark it as processed in the Firebase to ensure cleanup
+      const processedRef = ref(database, `ScannedIDs/${rfid}/processed`);
+      await set(processedRef, true);
+      console.log('✅ RFID marked as processed:', rfid);
     } catch (error) {
       console.error('❌ Error deleting scanned RFID from Firebase:', error);
+      // Don't throw error here to avoid disrupting the registration flow
     }
   };
 
@@ -365,11 +371,13 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       const success = await saveStudentData(newId, studentData);
       
       if (success) {
-        setNewStudentId(newId);
-        setIsAddDialogOpen(false);
+        console.log('🎉 Student registration successful, cleaning up ScannedIDs');
         
+        // Delete the scanned RFID from Firebase immediately after successful registration
         await deleteScannedRFID(studentData.rfid);
         
+        setNewStudentId(newId);
+        setIsAddDialogOpen(false);
         setIsScheduleDialogOpen(true);
         
         toast({
@@ -407,7 +415,14 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
           description: "Schedule updated successfully"
         });
       } else if (onStudentRegistered) {
-        // New student registration
+        // New student registration - ensure final cleanup
+        console.log('🧹 Final cleanup after schedule save');
+        
+        // Double-check RFID cleanup if there was a pending RFID
+        if (pendingRFID) {
+          await deleteScannedRFID(pendingRFID);
+        }
+        
         onStudentRegistered();
         toast({
           title: "Success",
