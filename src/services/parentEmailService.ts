@@ -1,4 +1,5 @@
 
+
 import { MailSlurp } from 'mailslurp-client';
 
 const mailslurp = new MailSlurp({ 
@@ -93,15 +94,13 @@ export const sendParentAbsenceAlert = async (params: EmailParams): Promise<boole
     
     const emailContent = generateAbsenceEmailContent(params);
     
-    // Send the email with correct request object structure
+    // Send the email with correct API format - pass SendEmailRequest directly
     await mailslurp.inboxController.sendEmail({
       inboxId: inbox.id,
-      sendEmailRequest: {
-        to: [params.parentEmail],
-        subject: `🚨 ICCT Attendance Alert - ${params.studentName} (${params.totalAbsences} Absences)`,
-        body: emailContent,
-        isHTML: true
-      }
+      to: [params.parentEmail],
+      subject: `🚨 ICCT Attendance Alert - ${params.studentName} (${params.totalAbsences} Absences)`,
+      body: emailContent,
+      isHTML: true
     });
     
     console.log('✅ Absence alert email sent successfully to:', params.parentEmail);
@@ -118,3 +117,4 @@ export const sendParentAbsenceAlert = async (params: EmailParams): Promise<boole
     return false;
   }
 };
+
