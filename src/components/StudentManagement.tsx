@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -170,6 +169,28 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
       return false;
     }
 
+    // Validate year format to match Firebase rules
+    if (!/^[1-4](st|nd|rd|th) Year$/.test(formData.year)) {
+      toast({
+        title: "Error",
+        description: "Year must be in format '1st Year', '2nd Year', '3rd Year', or '4th Year'",
+        variant: "destructive"
+      });
+      console.log('Validation failed: invalid year format');
+      return false;
+    }
+
+    // Validate section format (single letter A-Z)
+    if (!/^[A-Z]$/.test(formData.section)) {
+      toast({
+        title: "Error", 
+        description: "Section must be a single letter (A-Z)",
+        variant: "destructive"
+      });
+      console.log('Validation failed: invalid section format');
+      return false;
+    }
+
     // Check for duplicate RFID
     const existingRFID = Object.entries(students).find(([id, student]) => 
       student.rfid.toLowerCase() === formData.rfid.toLowerCase() && id !== selectedStudent
@@ -219,8 +240,21 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
     try {
       console.log('Saving schedule data to Firebase:', { studentId, schedule });
       
+      // Convert schedule arrays to strings that match Firebase rules
+      // Firebase rules expect schedule values to be strings or null
+      const formattedSchedule: Record<string, string[] | null> = {};
+      
+      // Only include days that have time slots, format them as arrays
+      Object.entries(schedule).forEach(([day, timeSlots]) => {
+        if (timeSlots.length > 0) {
+          formattedSchedule[day] = timeSlots;
+        } else {
+          formattedSchedule[day] = null;
+        }
+      });
+      
       const scheduleRef = ref(database, `schedules/${studentId}`);
-      await set(scheduleRef, schedule);
+      await set(scheduleRef, formattedSchedule);
       
       console.log('✅ Schedule data saved to Firebase:', studentId);
       return true;
@@ -265,15 +299,15 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
         });
       }
     } else {
-      // Add new student - generate new ID
+      // Add new student - generate new ID that matches Firebase rules (TA followed by 9 digits)
       const year = new Date().getFullYear();
       const existingIds = Object.keys(students);
       let newNumber = 1;
       let newId = '';
       
       do {
-        const paddedNumber = newNumber.toString().padStart(3, '0');
-        newId = `TA${year}00${paddedNumber}`;
+        const paddedNumber = newNumber.toString().padStart(6, '0');
+        newId = `TA${year}${paddedNumber}`;
         newNumber++;
       } while (existingIds.includes(newId));
 
@@ -588,8 +622,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                 <Input
                   id="add-section"
                   value={formData.section}
-                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, section: e.target.value.toUpperCase() })}
                   placeholder="A"
+                  maxLength={1}
                 />
               </div>
             </div>
