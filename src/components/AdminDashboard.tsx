@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,7 +23,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
   const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
   const [dummyData, setDummyData] = useState<DummyDataStructure>({
     students: {},
-    schedules: {}
+    schedules: {},
+    attendanceRecords: {},
+    adminUsers: {},
+    absenteeAlerts: {}
   });
   const [filter, setFilter] = useState<'week' | 'month' | 'term'>('week');
   const [activeTab, setActiveTab] = useState('attendance');
