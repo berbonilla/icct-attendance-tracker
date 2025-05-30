@@ -10,8 +10,8 @@ interface ParentAlertData {
   totalAbsences: number;
 }
 
-// Initialize EmailJS with the correct public key
-emailjs.init('T1-ak1I2qtEeyE-a_');
+// Initialize EmailJS with the new public key
+emailjs.init('lfjLSHgrCJDGmTa89');
 
 export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promise<boolean> => {
   try {
@@ -24,9 +24,9 @@ export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promis
     }
     
     const templateParams = {
-      // Based on your EmailJS template screenshot, use these exact variable names
-      email: alertData.parentEmail,  // This matches {{email}} in your template
-      name: alertData.parentName,    // This matches {{name}} in your template
+      // Using the recipient email variable that matches your template
+      email: alertData.parentEmail,  // This should match your template variable
+      name: alertData.parentName,    // This should match your template variable
       
       // Additional data for the email content
       student_name: alertData.studentName,
@@ -51,12 +51,12 @@ ICCT Attendance System`
     console.log('📧 Template parameters being sent:', templateParams);
     console.log('📧 Recipient email specifically:', templateParams.email);
 
-    // Send email using EmailJS with corrected configuration
+    // Send email using EmailJS with the new credentials
     const response = await emailjs.send(
-      'service_n24pbcp', // Your Gmail service ID
-      'template_98tti9a', // Your Auto-Reply template ID
+      'service_zhvj92m', // Your new Gmail service ID
+      'template_zl3ibr6', // Your new template ID
       templateParams,
-      'T1-ak1I2qtEeyE-a_' // Use the correct public key here
+      'lfjLSHgrCJDGmTa89' // Your new public key
     );
 
     console.log('✅ Email sent successfully with EmailJS:', response);
