@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar } from 'lucide-react';
 import { AttendanceData } from '@/types/attendance';
@@ -19,7 +20,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, logout } = useAuth();
   const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
   const [dummyData, setDummyData] = useState<DummyDataStructure>({
     students: {},
@@ -180,13 +181,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
   }
 
   return (
-    <div className="min-h-screen bg-light-gray p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-light-gray">
+      {/* Header */}
+      <div className="bg-dark-blue text-white p-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">ICCT RFID System</h1>
+            <p className="text-gray-light">Admin Portal</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="font-semibold">{currentUser.email}</p>
+              <p className="text-sm text-gray-light">Administrator</p>
+            </div>
+            <Button 
+              onClick={logout}
+              variant="outline"
+              className="bg-transparent border-white text-white hover:bg-white hover:text-dark-blue"
+            >
+              Logout
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Status indicators */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-dark-blue">Admin Dashboard</h1>
-            <p className="text-gray-dark">Welcome back, {currentUser.email}</p>
+            <h2 className="text-3xl font-bold text-dark-blue">Dashboard</h2>
+            <p className="text-gray-dark">System overview and management</p>
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant={isConnected ? 'default' : 'secondary'} className="px-3 py-1">
