@@ -1,12 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Calendar, Clock, TrendingUp } from 'lucide-react';
-import { AttendanceData, ClassAttendanceRecord, DayAttendanceRecord } from '@/types/attendance';
-import { DummyDataStructure, DummyDataStudent } from '@/types/dummyData';
+import { Calendar } from 'lucide-react';
+import { AttendanceData } from '@/types/attendance';
+import { DummyDataStructure } from '@/types/dummyData';
 import StudentManagement from './StudentManagement';
 import AttendanceAnalytics from './AttendanceAnalytics';
 import AttendanceStats from './AttendanceStats';
@@ -20,11 +20,10 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
-  const { currentUser } = useAuth();
+  const { user: currentUser } = useAuth();
   const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
   const [dummyData, setDummyData] = useState<DummyDataStructure>({
     students: {},
-    subjects: {},
     schedules: {}
   });
   const [filter, setFilter] = useState<'week' | 'month' | 'term'>('week');
@@ -64,16 +63,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
       }
     });
 
-    // Load subjects data
-    const subjectsRef = ref(database, 'subjects');
-    const subjectsUnsubscribe = onValue(subjectsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setDummyData(prev => ({ ...prev, subjects: data }));
-        console.log('📚 Loaded subjects data:', Object.keys(data).length, 'subjects');
-      }
-    });
-
     // Load schedules data
     const schedulesRef = ref(database, 'schedules');
     const schedulesUnsubscribe = onValue(schedulesRef, (snapshot) => {
@@ -87,11 +76,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
     return () => {
       off(attendanceRef);
       off(studentsRef);
-      off(subjectsRef);
       off(schedulesRef);
       attendanceUnsubscribe();
       studentsUnsubscribe();
-      subjectsUnsubscribe();
       schedulesUnsubscribe();
     };
   }, []);
@@ -130,26 +117,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
       Object.entries(records).forEach(([date, dayRecord]) => {
         // Handle both old and new data structures
         if (dayRecord && typeof dayRecord === 'object') {
-          if ('status' in dayRecord) {
+          if ('status' in dayRecord && typeof dayRecord.status === 'string') {
             // Old format: single record
             recentRecords.push({
               studentId,
               studentName: student.name,
               status: dayRecord.status,
-              subject: dayRecord.subject || 'Unknown',
-              timeIn: dayRecord.timeIn || 'N/A',
+              subject: (dayRecord as any).subject || 'Unknown',
+              timeIn: (dayRecord as any).timeIn || 'N/A',
               date
             });
           } else {
             // New format: multiple classes per day
             Object.values(dayRecord).forEach(classRecord => {
-              if (classRecord && typeof classRecord === 'object' && 'status' in classRecord) {
+              if (classRecord && typeof classRecord === 'object' && 'status' in classRecord && typeof classRecord.status === 'string') {
                 recentRecords.push({
                   studentId,
                   studentName: student.name,
                   status: classRecord.status,
-                  subject: classRecord.subject || 'Unknown',
-                  timeIn: classRecord.timeIn || 'N/A',
+                  subject: (classRecord as any).subject || 'Unknown',
+                  timeIn: (classRecord as any).timeIn || 'N/A',
                   date
                 });
               }
@@ -263,7 +250,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
 
           <TabsContent value="students" className="space-y-6">
             <StudentManagement
-              students={dummyData.students}
               pendingRFID={pendingRFID}
             />
           </TabsContent>

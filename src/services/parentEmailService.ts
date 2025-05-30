@@ -10,7 +10,7 @@ interface ParentAlertData {
   totalAbsences: number;
 }
 
-// Initialize EmailJS with your public key
+// Initialize EmailJS with the correct public key
 emailjs.init('T1-ak1I2qtEeyE-a_');
 
 export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promise<boolean> => {
@@ -39,12 +39,12 @@ Best regards,
 ICCT Attendance System`
     };
 
-    // Send email using EmailJS with your actual service and template IDs
+    // Send email using EmailJS with corrected configuration
     const response = await emailjs.send(
       'service_n24pbcp', // Your Gmail service ID
       'template_98tti9a', // Your Auto-Reply template ID
       templateParams,
-      'Db7C53JtWXxHZPunJog2k' // Your private key
+      'T1-ak1I2qtEeyE-a_' // Use the correct public key here
     );
 
     console.log('✅ Email sent successfully with EmailJS:', response);
