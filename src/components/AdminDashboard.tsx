@@ -4,498 +4,282 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Calendar, Clock, TrendingUp, Mail } from 'lucide-react';
+import { Users, Calendar, Clock, TrendingUp } from 'lucide-react';
 import { AttendanceData, ClassAttendanceRecord, DayAttendanceRecord } from '@/types/attendance';
 import { DummyDataStructure, DummyDataStudent } from '@/types/dummyData';
 import StudentManagement from './StudentManagement';
 import AttendanceAnalytics from './AttendanceAnalytics';
+import AttendanceStats from './AttendanceStats';
+import SettingsPanel from './SettingsPanel';
 import { toast } from '@/hooks/use-toast';
 import { database } from '@/config/firebase';
 import { ref, onValue, off } from 'firebase/database';
-import { sendParentAbsenceAlert } from '@/services/parentEmailService';
 
 interface AdminDashboardProps {
   pendingRFID?: string | null;
-  onRFIDRegistered?: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  pendingRFID, 
-  onRFIDRegistered 
-}) => {
-  const { user, logout } = useAuth();
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
+  const { currentUser } = useAuth();
   const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
-  const [students, setStudents] = useState<Record<string, DummyDataStudent>>({});
+  const [dummyData, setDummyData] = useState<DummyDataStructure>({
+    students: {},
+    subjects: {},
+    schedules: {}
+  });
   const [filter, setFilter] = useState<'week' | 'month' | 'term'>('week');
   const [activeTab, setActiveTab] = useState('attendance');
   const [isConnected, setIsConnected] = useState(false);
-  const [isTestingEmail, setIsTestingEmail] = useState(false);
-
-  // Helper function to check if a record is a ClassAttendanceRecord
-  const isClassAttendanceRecord = (record: any): record is ClassAttendanceRecord => {
-    return record && typeof record === 'object' && 
-           'status' in record && 'subject' in record && 
-           'timeSlot' in record && 'recordedAt' in record;
-  };
-
-  // Helper function to check if a record is a DayAttendanceRecord
-  const isDayAttendanceRecord = (record: any): record is DayAttendanceRecord => {
-    return record && typeof record === 'object' && 
-           !('status' in record) && !('timeSlot' in record);
-  };
-
-  // Helper function to extract all class records from any attendance record
-  const extractClassRecords = (dayRecord: any): ClassAttendanceRecord[] => {
-    if (isClassAttendanceRecord(dayRecord)) {
-      // Single class record (old format or single class day)
-      return [dayRecord];
-    } else if (isDayAttendanceRecord(dayRecord)) {
-      // Multiple classes in a day (new format)
-      return Object.values(dayRecord).filter(isClassAttendanceRecord);
-    } else if (typeof dayRecord === 'object' && dayRecord !== null && 'status' in dayRecord) {
-      // Old format: convert to ClassAttendanceRecord for processing
-      return [{
-        status: dayRecord.status,
-        timeIn: dayRecord.timeIn,
-        timeOut: dayRecord.timeOut,
-        subject: dayRecord.subject || 'Unknown',
-        timeSlot: '00:00-00:00',
-        recordedAt: Date.now()
-      }];
-    }
-    return [];
-  };
 
   useEffect(() => {
-    // If there's a pending RFID, automatically switch to student management
-    if (pendingRFID) {
-      setActiveTab('students');
-      toast({
-        title: "RFID Registration",
-        description: `Ready to register RFID: ${pendingRFID.toUpperCase().replace(/(.{2})/g, '$1 ').trim()}`,
-        duration: 5000
-      });
-    }
-  }, [pendingRFID]);
-
-  useEffect(() => {
-    console.log('🔗 AdminDashboard: Connecting to Firebase Database');
-    
-    // Set up real-time listener for the entire database
-    const dbRef = ref(database);
-    
-    const unsubscribe = onValue(dbRef, (snapshot) => {
-      const databaseData = snapshot.val() as DummyDataStructure | null;
-      
-      console.log('🔥 AdminDashboard: Firebase data received:', databaseData);
-      
-      if (databaseData) {
+    // Load attendance data
+    const attendanceRef = ref(database, 'attendanceRecords');
+    const attendanceUnsubscribe = onValue(attendanceRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setAttendanceData(data);
         setIsConnected(true);
-        setAttendanceData(databaseData.attendanceRecords || {});
-        setStudents(databaseData.students || {});
-        
-        console.log('Admin dashboard data loaded from Firebase:', {
-          studentsCount: Object.keys(databaseData.students || {}).length,
-          attendanceRecordsCount: Object.keys(databaseData.attendanceRecords || {}).length
-        });
+        console.log('📊 Loaded attendance data:', Object.keys(data).length, 'students');
       } else {
-        console.log('Firebase database is empty');
-        setIsConnected(true);
         setAttendanceData({});
-        setStudents({});
+        console.log('📊 No attendance data found');
       }
     }, (error) => {
-      console.error('❌ AdminDashboard: Firebase error:', error);
+      console.error('❌ Error loading attendance data:', error);
       setIsConnected(false);
-      setAttendanceData({});
-      setStudents({});
+      toast({
+        title: "Connection Error",
+        description: "Failed to load attendance data from Firebase",
+        variant: "destructive"
+      });
+    });
+
+    // Load students data
+    const studentsRef = ref(database, 'students');
+    const studentsUnsubscribe = onValue(studentsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setDummyData(prev => ({ ...prev, students: data }));
+        console.log('👥 Loaded students data:', Object.keys(data).length, 'students');
+      }
+    });
+
+    // Load subjects data
+    const subjectsRef = ref(database, 'subjects');
+    const subjectsUnsubscribe = onValue(subjectsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setDummyData(prev => ({ ...prev, subjects: data }));
+        console.log('📚 Loaded subjects data:', Object.keys(data).length, 'subjects');
+      }
+    });
+
+    // Load schedules data
+    const schedulesRef = ref(database, 'schedules');
+    const schedulesUnsubscribe = onValue(schedulesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setDummyData(prev => ({ ...prev, schedules: data }));
+        console.log('📅 Loaded schedules data:', Object.keys(data).length, 'schedules');
+      }
     });
 
     return () => {
-      off(dbRef);
-      unsubscribe();
+      off(attendanceRef);
+      off(studentsRef);
+      off(subjectsRef);
+      off(schedulesRef);
+      attendanceUnsubscribe();
+      studentsUnsubscribe();
+      subjectsUnsubscribe();
+      schedulesUnsubscribe();
     };
   }, []);
 
-  const calculateStats = () => {
-    const allRecords: ClassAttendanceRecord[] = [];
-    
-    // Extract all class attendance records from the new structure
-    Object.values(attendanceData).forEach(studentRecords => {
-      Object.values(studentRecords).forEach(dayRecord => {
-        allRecords.push(...extractClassRecords(dayRecord));
+  const handleToggleTracking = () => {
+    if (isConnected) {
+      toast({
+        title: "Tracking Active",
+        description: "Absence tracking is running and will send alerts automatically",
+        duration: 3000
+      });
+    } else {
+      toast({
+        title: "Connection Required",
+        description: "Please ensure Firebase connection is active",
+        variant: "destructive",
+        duration: 3000
+      });
+    }
+  };
+
+  const getRecentAttendance = (limit: number = 10) => {
+    const recentRecords: Array<{
+      studentId: string;
+      studentName: string;
+      status: string;
+      subject: string;
+      timeIn: string;
+      date: string;
+    }> = [];
+
+    Object.entries(attendanceData).forEach(([studentId, records]) => {
+      const student = dummyData.students[studentId];
+      if (!student) return;
+
+      Object.entries(records).forEach(([date, dayRecord]) => {
+        // Handle both old and new data structures
+        if (dayRecord && typeof dayRecord === 'object') {
+          if ('status' in dayRecord) {
+            // Old format: single record
+            recentRecords.push({
+              studentId,
+              studentName: student.name,
+              status: dayRecord.status,
+              subject: dayRecord.subject || 'Unknown',
+              timeIn: dayRecord.timeIn || 'N/A',
+              date
+            });
+          } else {
+            // New format: multiple classes per day
+            Object.values(dayRecord).forEach(classRecord => {
+              if (classRecord && typeof classRecord === 'object' && 'status' in classRecord) {
+                recentRecords.push({
+                  studentId,
+                  studentName: student.name,
+                  status: classRecord.status,
+                  subject: classRecord.subject || 'Unknown',
+                  timeIn: classRecord.timeIn || 'N/A',
+                  date
+                });
+              }
+            });
+          }
+        }
       });
     });
 
-    const total = allRecords.length;
-    const present = allRecords.filter(r => r.status === 'present' || r.status === 'late').length;
-    const absent = allRecords.filter(r => r.status === 'absent').length;
-    const late = allRecords.filter(r => r.status === 'late').length;
-    
-    return {
-      totalStudents: Object.keys(students).length,
-      totalRecords: total,
-      presentRate: total > 0 ? Math.round((present / total) * 100) : 0,
-      absentCount: absent,
-      lateCount: late
-    };
+    return recentRecords
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, limit);
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
+    const colors = {
       present: 'bg-green-500 text-white',
-      absent: 'bg-red text-white',
-      late: 'bg-yellow-500 text-white'
+      late: 'bg-yellow-500 text-white',
+      absent: 'bg-red-500 text-white'
     };
     
     return (
-      <Badge className={variants[status] || 'bg-gray-500 text-white'}>
+      <Badge className={colors[status as keyof typeof colors] || 'bg-gray-500 text-white'}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
-  const testEmailFunction = async () => {
-    setIsTestingEmail(true);
-    
-    try {
-      console.log('🧪 Testing email function...');
-      
-      // Test data for email
-      const testData = {
-        parentEmail: 'test@example.com', // You can change this to your email for testing
-        parentName: 'Test Parent',
-        studentName: 'Test Student',
-        studentId: 'TEST001',
-        absentDates: ['2025-05-30', '2025-05-29', '2025-05-28'],
-        totalAbsences: 3
-      };
+  const recentAttendance = getRecentAttendance();
 
-      const success = await sendParentAbsenceAlert(testData);
-      
-      if (success) {
-        toast({
-          title: "Email Test Successful! ✅",
-          description: `Test email sent to ${testData.parentEmail}`,
-          duration: 5000
-        });
-      } else {
-        toast({
-          title: "Email Test Failed ❌",
-          description: "Check console for error details",
-          variant: "destructive",
-          duration: 5000
-        });
-      }
-    } catch (error) {
-      console.error('❌ Email test error:', error);
-      toast({
-        title: "Email Test Error ❌",
-        description: "An error occurred while testing email",
-        variant: "destructive",
-        duration: 5000
-      });
-    } finally {
-      setIsTestingEmail(false);
-    }
-  };
-
-  const stats = calculateStats();
+  if (!currentUser) {
+    return (
+      <Card className="w-full max-w-md mx-auto mt-8">
+        <CardContent className="text-center py-8">
+          <p className="text-gray-600">Please log in to access the admin dashboard.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-light">
-      {/* Header */}
-      <div className="bg-dark-blue text-white p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+    <div className="min-h-screen bg-light-gray p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
-            <h1 className="text-2xl font-bold">ICCT RFID System</h1>
-            <p className="text-gray-light">
-              Admin Dashboard {!isConnected && '(Connecting to Firebase...)'}
-            </p>
+            <h1 className="text-3xl font-bold text-dark-blue">Admin Dashboard</h1>
+            <p className="text-gray-dark">Welcome back, {currentUser.email}</p>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="font-semibold">{user?.name}</p>
-              <p className="text-sm text-gray-light">{user?.id}</p>
-            </div>
-            <Button 
-              onClick={logout}
-              variant="outline"
-              className="bg-transparent border-white text-white hover:bg-white hover:text-dark-blue"
-            >
-              Logout
-            </Button>
+          <div className="flex items-center space-x-2">
+            <Badge variant={isConnected ? 'default' : 'secondary'} className="px-3 py-1">
+              {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+            </Badge>
+            {pendingRFID && (
+              <Badge variant="outline" className="px-3 py-1 border-orange-500 text-orange-700">
+                Pending RFID: {pendingRFID}
+              </Badge>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Connection Status */}
-        {!isConnected && (
-          <Card className="border-yellow-300 bg-yellow-50">
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-                <p className="text-yellow-800">Connecting to Firebase database...</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Stats Overview */}
+        <AttendanceStats 
+          attendanceData={attendanceData} 
+          students={dummyData.students} 
+          filter={filter} 
+        />
 
-        {/* Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Users className="w-8 h-8 text-dark-blue" />
-                <div>
-                  <p className="text-2xl font-bold text-dark-blue">{stats.totalStudents}</p>
-                  <p className="text-sm text-gray-dark">Total Students</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-8 h-8 text-green-600" />
-                <div>
-                  <p className="text-2xl font-bold text-green-600">{stats.presentRate}%</p>
-                  <p className="text-sm text-gray-dark">Attendance Rate</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-8 h-8 text-red" />
-                <div>
-                  <p className="text-2xl font-bold text-red">{stats.absentCount}</p>
-                  <p className="text-sm text-gray-dark">Absent Today</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Clock className="w-8 h-8 text-yellow-600" />
-                <div>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.lateCount}</p>
-                  <p className="text-sm text-gray-dark">Late Today</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filter Buttons */}
-        <div className="flex space-x-2">
-          <Button 
-            onClick={() => setFilter('week')}
-            variant={filter === 'week' ? 'default' : 'outline'}
-            className={filter === 'week' ? 'bg-dark-blue text-white' : ''}
-            disabled={!isConnected}
-          >
-            This Week
-          </Button>
-          <Button 
-            onClick={() => setFilter('month')}
-            variant={filter === 'month' ? 'default' : 'outline'}
-            className={filter === 'month' ? 'bg-dark-blue text-white' : ''}
-            disabled={!isConnected}
-          >
-            This Month
-          </Button>
-          <Button 
-            onClick={() => setFilter('term')}
-            variant={filter === 'term' ? 'default' : 'outline'}
-            className={filter === 'term' ? 'bg-dark-blue text-white' : ''}
-            disabled={!isConnected}
-          >
-            This Term
-          </Button>
-        </div>
-
-        {/* Tabs for different admin functions */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        {/* Main Content Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="attendance" disabled={!isConnected}>Attendance Records</TabsTrigger>
-            <TabsTrigger value="students" disabled={!isConnected}>Student Management</TabsTrigger>
-            <TabsTrigger value="analytics" disabled={!isConnected}>AI Analytics</TabsTrigger>
-            <TabsTrigger value="settings" disabled={!isConnected}>Settings</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            <TabsTrigger value="students">Students</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="attendance">
+          <TabsContent value="attendance" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-dark-blue">Attendance Overview</CardTitle>
-                <CardDescription>
-                  Student attendance records for {filter} 
-                  {isConnected ? ' (Live from Firebase)' : ' (Connecting...)'}
-                </CardDescription>
+                <CardTitle>Recent Attendance Records</CardTitle>
+                <CardDescription>Latest student check-ins and attendance status</CardDescription>
               </CardHeader>
               <CardContent>
-                {!isConnected ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-dark text-lg">Connecting to Firebase...</p>
-                    <p className="text-gray-500 text-sm mt-2">Please wait while we load the data</p>
-                  </div>
-                ) : Object.keys(attendanceData).length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-dark text-lg">No attendance records found</p>
-                    <p className="text-gray-500 text-sm mt-2">Add students to start tracking attendance</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {Object.entries(attendanceData).map(([studentId, records]) => {
-                      const student = students[studentId];
-                      if (!student) return null;
-                      
-                      return (
-                        <div key={studentId} className="border border-gray-medium rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h3 className="font-semibold text-dark-blue">{student.name}</h3>
-                              <p className="text-sm text-gray-dark">
-                                {studentId} | {student.course} - {student.year}-{student.section}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
-                            {Object.entries(records)
-                              .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-                              .slice(0, 7)
-                              .map(([date, dayRecord]) => {
-                                const classRecords = extractClassRecords(dayRecord);
-                                
-                                if (classRecords.length === 0) return null;
-                                
-                                if (classRecords.length === 1) {
-                                  // Single class record
-                                  const record = classRecords[0];
-                                  return (
-                                    <div key={date} className="bg-gray-light p-2 rounded text-center">
-                                      <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
-                                      {getStatusBadge(record.status)}
-                                      {record.timeIn && (
-                                        <p className="text-xs text-gray-dark mt-1">{record.timeIn}</p>
-                                      )}
-                                    </div>
-                                  );
-                                } else {
-                                  // Multiple classes in a day
-                                  const presentCount = classRecords.filter(c => c.status === 'present').length;
-                                  const lateCount = classRecords.filter(c => c.status === 'late').length;
-                                  const absentCount = classRecords.filter(c => c.status === 'absent').length;
-                                  
-                                  let overallStatus = 'present';
-                                  if (absentCount > 0) overallStatus = 'absent';
-                                  else if (lateCount > 0) overallStatus = 'late';
-                                  
-                                  return (
-                                    <div key={date} className="bg-gray-light p-2 rounded text-center">
-                                      <p className="text-xs text-gray-dark">{new Date(date).toLocaleDateString()}</p>
-                                      {getStatusBadge(overallStatus)}
-                                      <p className="text-xs text-gray-dark mt-1">
-                                        {classRecords.length} classes
-                                      </p>
-                                    </div>
-                                  );
-                                }
-                              })}
-                          </div>
+                <div className="space-y-3">
+                  {recentAttendance.length > 0 ? (
+                    recentAttendance.map((record, index) => (
+                      <div key={`${record.studentId}-${record.date}-${index}`} 
+                           className="flex items-center justify-between p-3 border border-gray-medium rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-dark-blue">{record.studentName}</h4>
+                          <p className="text-sm text-gray-dark">{record.subject}</p>
+                          <p className="text-xs text-gray-500">{record.date} at {record.timeIn}</p>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="students">
-            <StudentManagement 
-              pendingRFID={pendingRFID}
-              onStudentRegistered={onRFIDRegistered}
-            />
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <AttendanceAnalytics 
-              attendanceData={attendanceData}
-              students={students}
-            />
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-dark-blue">System Settings</CardTitle>
-                <CardDescription>
-                  Configure system preferences and alerts 
-                  {isConnected ? ' (Connected to Firebase)' : ' (Connecting...)'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 border border-gray-medium rounded-lg">
-                    <h3 className="font-semibold mb-2">Email Alert System</h3>
-                    <p className="text-sm text-gray-dark mb-3">Test the parent absence alert email functionality</p>
-                    <div className="flex items-center space-x-3">
-                      <Button 
-                        onClick={testEmailFunction}
-                        disabled={!isConnected || isTestingEmail}
-                        className="bg-dark-blue text-white hover:bg-light-blue"
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        {isTestingEmail ? 'Sending Test Email...' : 'Test Email Function'}
-                      </Button>
-                      <Badge variant="outline" className="text-green-600">
-                        EmailJS Configured ✅
-                      </Badge>
+                        <div>
+                          {getStatusBadge(record.status)}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No attendance records found</p>
+                      <p className="text-sm">Records will appear here when students scan their RFID cards</p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Will send test email to: test@example.com (change in code if needed)
-                    </p>
-                  </div>
-                  
-                  <div className="p-4 border border-gray-medium rounded-lg">
-                    <h3 className="font-semibold mb-2">Absentee Alerts</h3>
-                    <p className="text-sm text-gray-dark mb-3">Configure automatic notifications for student absences</p>
-                    <Button 
-                      className="bg-dark-blue text-white hover:bg-light-blue"
-                      disabled={!isConnected}
-                    >
-                      Configure Alerts
-                    </Button>
-                  </div>
-                  
-                  <div className="p-4 border border-gray-medium rounded-lg">
-                    <h3 className="font-semibold mb-2">Database Management</h3>
-                    <p className="text-sm text-gray-dark mb-3">Backup and restore attendance data</p>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" disabled={!isConnected}>Backup Data</Button>
-                      <Button variant="outline" disabled={!isConnected}>Restore Data</Button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 border border-gray-medium rounded-lg">
-                    <h3 className="font-semibold mb-2">Firebase Connection</h3>
-                    <p className="text-sm text-gray-dark mb-3">
-                      Database URL: https://icct-rfid-system-default-rtdb.asia-southeast1.firebasedatabase.app/
-                    </p>
-                    <Badge variant="outline" className={isConnected ? 'text-green-600' : 'text-red'}>
-                      {isConnected ? 'Connected' : 'Disconnected'}
-                    </Badge>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="students" className="space-y-6">
+            <StudentManagement
+              students={dummyData.students}
+              pendingRFID={pendingRFID}
+            />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <AttendanceAnalytics 
+              attendanceData={attendanceData}
+              students={dummyData.students}
+            />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <SettingsPanel 
+              isConnected={isConnected}
+              onToggleTracking={handleToggleTracking}
+            />
           </TabsContent>
         </Tabs>
       </div>
