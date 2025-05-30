@@ -154,14 +154,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
   };
 
   const getStatusBadge = (status: string) => {
-    const colors = {
-      present: 'bg-green-500 text-white',
-      late: 'bg-yellow-500 text-white',
-      absent: 'bg-red-500 text-white'
+    const variantMap: Record<string, "present" | "absent" | "late"> = {
+      present: "present",
+      absent: "absent",
+      late: "late"
     };
     
     return (
-      <Badge className={colors[status as keyof typeof colors] || 'bg-gray-500 text-white'}>
+      <Badge variant={variantMap[status] || "outline"}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
