@@ -21,7 +21,7 @@ const EmailTestPanel: React.FC<EmailTestPanelProps> = ({ isConnected }) => {
       
       // Test data for email
       const testData = {
-        parentEmail: 'robybonilla18@gmail.com', // Updated to use the requested email
+        parentEmail: 'tm3307613@gmail.com', // Updated to the requested email
         parentName: 'Test Parent',
         studentName: 'Test Student',
         studentId: 'TEST001',
@@ -76,7 +76,7 @@ const EmailTestPanel: React.FC<EmailTestPanelProps> = ({ isConnected }) => {
         </Badge>
       </div>
       <p className="text-xs text-gray-500 mt-2">
-        Will send test email to: robybonilla18@gmail.com
+        Will send test email to: tm3307613@gmail.com
       </p>
     </div>
   );
