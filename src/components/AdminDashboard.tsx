@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Calendar, Clock, TrendingUp } from 'lucide-react';
+import { Users, Calendar, Clock, TrendingUp, Mail } from 'lucide-react';
 import { AttendanceData, ClassAttendanceRecord, DayAttendanceRecord } from '@/types/attendance';
 import { DummyDataStructure, DummyDataStudent } from '@/types/dummyData';
 import StudentManagement from './StudentManagement';
@@ -13,6 +12,7 @@ import AttendanceAnalytics from './AttendanceAnalytics';
 import { toast } from '@/hooks/use-toast';
 import { database } from '@/config/firebase';
 import { ref, onValue, off } from 'firebase/database';
+import { sendParentAbsenceAlert } from '@/services/parentEmailService';
 
 interface AdminDashboardProps {
   pendingRFID?: string | null;
@@ -29,6 +29,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [filter, setFilter] = useState<'week' | 'month' | 'term'>('week');
   const [activeTab, setActiveTab] = useState('attendance');
   const [isConnected, setIsConnected] = useState(false);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
 
   // Helper function to check if a record is a ClassAttendanceRecord
   const isClassAttendanceRecord = (record: any): record is ClassAttendanceRecord => {
@@ -152,6 +153,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
+  };
+
+  const testEmailFunction = async () => {
+    setIsTestingEmail(true);
+    
+    try {
+      console.log('🧪 Testing email function...');
+      
+      // Test data for email
+      const testData = {
+        parentEmail: 'test@example.com', // You can change this to your email for testing
+        parentName: 'Test Parent',
+        studentName: 'Test Student',
+        studentId: 'TEST001',
+        absentDates: ['2025-05-30', '2025-05-29', '2025-05-28'],
+        totalAbsences: 3
+      };
+
+      const success = await sendParentAbsenceAlert(testData);
+      
+      if (success) {
+        toast({
+          title: "Email Test Successful! ✅",
+          description: `Test email sent to ${testData.parentEmail}`,
+          duration: 5000
+        });
+      } else {
+        toast({
+          title: "Email Test Failed ❌",
+          description: "Check console for error details",
+          variant: "destructive",
+          duration: 5000
+        });
+      }
+    } catch (error) {
+      console.error('❌ Email test error:', error);
+      toast({
+        title: "Email Test Error ❌",
+        description: "An error occurred while testing email",
+        variant: "destructive",
+        duration: 5000
+      });
+    } finally {
+      setIsTestingEmail(false);
+    }
   };
 
   const stats = calculateStats();
@@ -397,6 +443,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  <div className="p-4 border border-gray-medium rounded-lg">
+                    <h3 className="font-semibold mb-2">Email Alert System</h3>
+                    <p className="text-sm text-gray-dark mb-3">Test the parent absence alert email functionality</p>
+                    <div className="flex items-center space-x-3">
+                      <Button 
+                        onClick={testEmailFunction}
+                        disabled={!isConnected || isTestingEmail}
+                        className="bg-dark-blue text-white hover:bg-light-blue"
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {isTestingEmail ? 'Sending Test Email...' : 'Test Email Function'}
+                      </Button>
+                      <Badge variant="outline" className="text-green-600">
+                        EmailJS Configured ✅
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Will send test email to: test@example.com (change in code if needed)
+                    </p>
+                  </div>
+                  
                   <div className="p-4 border border-gray-medium rounded-lg">
                     <h3 className="font-semibold mb-2">Absentee Alerts</h3>
                     <p className="text-sm text-gray-dark mb-3">Configure automatic notifications for student absences</p>
