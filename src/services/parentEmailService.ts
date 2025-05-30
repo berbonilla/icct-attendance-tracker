@@ -23,6 +23,22 @@ export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promis
       return false;
     }
     
+    // Create email content with student name replacing {{Name}} placeholder
+    const emailContent = `Hi,
+
+I hope this message finds you well.
+
+I am writing to inform you that our attendance system has marked your child, ${alertData.studentName}, as absent for three consecutive days this past week. Please be advised that such consecutive absences trigger an alert in our system as part of our commitment to maintaining accurate attendance records and ensuring the wellbeing of all our students.
+
+We understand that absences may be due to various reasons, such as illness or family emergencies. However, we kindly request that you provide a written explanation for these absences so that we can properly update our records and offer any necessary support to your child.
+
+If you have already communicated with the school regarding these absences, please disregard this message. Otherwise, we would appreciate it if you could contact us as soon as possible.
+
+Thank you for your understanding and cooperation.
+
+Best regards,
+ICCT ADMIN`;
+    
     const templateParams = {
       // Using the recipient email variable that matches your template
       email: alertData.parentEmail,  // This should match your template variable
@@ -33,23 +49,13 @@ export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promis
       student_id: alertData.studentId,
       absent_dates: alertData.absentDates.join(', '),
       total_absences: alertData.totalAbsences.toString(),
-      subject: `Absence Alert: ${alertData.studentName} (${alertData.studentId})`,
-      message: `Dear ${alertData.parentName},
-
-This is an automated notification from the ICCT RFID Attendance System.
-
-Your child, ${alertData.studentName} (Student ID: ${alertData.studentId}), has been absent from ${alertData.totalAbsences} class(es).
-
-Absent dates: ${alertData.absentDates.join(', ')}
-
-Please contact the school if you have any questions or concerns about your child's attendance.
-
-Best regards,
-ICCT Attendance System`
+      subject: `Attendance Alert - ${alertData.studentName}`,
+      message: emailContent
     };
 
     console.log('📧 Template parameters being sent:', templateParams);
     console.log('📧 Recipient email specifically:', templateParams.email);
+    console.log('📧 Email content with student name:', emailContent);
 
     // Send email using EmailJS with the new credentials
     const response = await emailjs.send(
