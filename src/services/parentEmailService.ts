@@ -17,9 +17,23 @@ export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promis
   try {
     console.log('📧 Attempting to send absence alert email with EmailJS...', alertData);
     
+    // Check if parent email exists
+    if (!alertData.parentEmail || alertData.parentEmail.trim() === '') {
+      console.error('❌ Parent email is empty or undefined:', alertData.parentEmail);
+      return false;
+    }
+    
     const templateParams = {
+      // Try multiple common parameter names for recipient email
       to_email: alertData.parentEmail,
+      user_email: alertData.parentEmail,
+      email: alertData.parentEmail,
+      recipient_email: alertData.parentEmail,
+      
       to_name: alertData.parentName,
+      user_name: alertData.parentName,
+      parent_name: alertData.parentName,
+      
       student_name: alertData.studentName,
       student_id: alertData.studentId,
       absent_dates: alertData.absentDates.join(', '),
@@ -39,6 +53,8 @@ Best regards,
 ICCT Attendance System`
     };
 
+    console.log('📧 Template parameters being sent:', templateParams);
+
     // Send email using EmailJS with corrected configuration
     const response = await emailjs.send(
       'service_n24pbcp', // Your Gmail service ID
@@ -51,6 +67,12 @@ ICCT Attendance System`
     return true;
   } catch (error) {
     console.error('❌ Failed to send absence alert email with EmailJS:', error);
+    
+    // Additional debugging information
+    if (error && typeof error === 'object' && 'text' in error) {
+      console.error('❌ EmailJS error details:', error.text);
+    }
+    
     return false;
   }
 };
