@@ -24,16 +24,11 @@ export const sendParentAbsenceAlert = async (alertData: ParentAlertData): Promis
     }
     
     const templateParams = {
-      // Try multiple common parameter names for recipient email
-      to_email: alertData.parentEmail,
-      user_email: alertData.parentEmail,
-      email: alertData.parentEmail,
-      recipient_email: alertData.parentEmail,
+      // Based on your EmailJS template screenshot, use these exact variable names
+      email: alertData.parentEmail,  // This matches {{email}} in your template
+      name: alertData.parentName,    // This matches {{name}} in your template
       
-      to_name: alertData.parentName,
-      user_name: alertData.parentName,
-      parent_name: alertData.parentName,
-      
+      // Additional data for the email content
       student_name: alertData.studentName,
       student_id: alertData.studentId,
       absent_dates: alertData.absentDates.join(', '),
@@ -54,6 +49,7 @@ ICCT Attendance System`
     };
 
     console.log('📧 Template parameters being sent:', templateParams);
+    console.log('📧 Recipient email specifically:', templateParams.email);
 
     // Send email using EmailJS with corrected configuration
     const response = await emailjs.send(
