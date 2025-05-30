@@ -137,7 +137,7 @@ const StudentDashboard: React.FC = () => {
     
     const variants: Record<string, string> = {
       present: 'bg-green-500 text-white',
-      absent: 'bg-red text-white',
+      absent: 'bg-red-500 text-white',
       late: 'bg-yellow-500 text-white'
     };
     
