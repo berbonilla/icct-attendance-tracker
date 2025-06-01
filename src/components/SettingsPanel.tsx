@@ -3,7 +3,6 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import EmailTestPanel from './EmailTestPanel';
 
 interface SettingsPanelProps {
   isConnected: boolean;
@@ -19,7 +18,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isConnected, onToggleTrac
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <EmailTestPanel isConnected={isConnected} />
+          <div className="p-4 border border-gray-medium rounded-lg">
+            <h3 className="font-semibold mb-2">Email Alert System</h3>
+            <p className="text-sm text-gray-dark mb-3">Automatic parent notifications for student absences</p>
+            <div className="flex items-center space-x-3">
+              <Badge variant="outline" className="text-green-600">
+                EmailJS Configured ✅
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Emails are sent automatically when students reach 3+ absences
+            </p>
+          </div>
           
           <div className="p-4 border border-gray-medium rounded-lg">
             <h3 className="font-semibold mb-2">Absentee Alerts</h3>
