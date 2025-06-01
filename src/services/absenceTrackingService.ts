@@ -1,4 +1,3 @@
-
 import { database } from '@/config/firebase';
 import { ref, get, set, onValue, off, query, orderByChild, equalTo } from 'firebase/database';
 import { sendParentAbsenceAlert } from './parentEmailService';
@@ -41,7 +40,7 @@ interface AbsenceAlert {
 const processingQueue = new Set<string>();
 let isProcessing = false;
 const DEBOUNCE_DELAY = 3000; // Increased to 3 seconds
-const EMAIL_COOLDOWN_PERIOD = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+const EMAIL_COOLDOWN_PERIOD = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds (changed from 30 days)
 let processTimeout: NodeJS.Timeout | null = null;
 
 const countStudentAbsences = (attendanceData: Record<string, DayAttendanceRecord>): { count: number; dates: string[] } => {
@@ -201,7 +200,7 @@ const processStudentAbsences = async (studentId: string, attendanceData: Record<
       
       console.log(`📧 Sending new absence alert for student ${studentId}`);
       
-      // Calculate next allowed email time (1 month from now)
+      // Calculate next allowed email time (1 week from now)
       const currentTime = Date.now();
       const nextAllowedEmailTime = currentTime + EMAIL_COOLDOWN_PERIOD;
       
@@ -277,7 +276,7 @@ const debouncedProcessAttendance = (allAttendanceData: Record<string, Record<str
 };
 
 export const initializeAbsenceTracking = (): (() => void) => {
-  console.log('🔍 Initializing absence tracking system with 1-month email cooldown...');
+  console.log('🔍 Initializing absence tracking system with 1-week email cooldown...');
   
   const attendanceRef = ref(database, 'attendanceRecords');
   
