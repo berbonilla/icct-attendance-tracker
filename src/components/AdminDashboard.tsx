@@ -1,16 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar } from 'lucide-react';
 import { AttendanceData } from '@/types/attendance';
 import { DummyDataStructure } from '@/types/dummyData';
-import StudentManagement from './StudentManagement';
-import AttendanceAnalytics from './AttendanceAnalytics';
 import AttendanceStats from './AttendanceStats';
-import SettingsPanel from './SettingsPanel';
+import AdminHeader from './AdminHeader';
+import DashboardStatusBar from './DashboardStatusBar';
+import DashboardTabs from './DashboardTabs';
 import { toast } from '@/hooks/use-toast';
 import { database } from '@/config/firebase';
 import { ref, onValue, off } from 'firebase/database';
@@ -20,7 +17,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
-  const { user: currentUser, logout } = useAuth();
+  const { user: currentUser } = useAuth();
   const [attendanceData, setAttendanceData] = useState<AttendanceData>({});
   const [dummyData, setDummyData] = useState<DummyDataStructure>({
     students: {},
@@ -103,73 +100,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
     }
   };
 
-  const getRecentAttendance = (limit: number = 10) => {
-    const recentRecords: Array<{
-      studentId: string;
-      studentName: string;
-      status: string;
-      subject: string;
-      timeIn: string;
-      date: string;
-    }> = [];
-
-    Object.entries(attendanceData).forEach(([studentId, records]) => {
-      const student = dummyData.students[studentId];
-      if (!student) return;
-
-      Object.entries(records).forEach(([date, dayRecord]) => {
-        // Handle both old and new data structures
-        if (dayRecord && typeof dayRecord === 'object') {
-          if ('status' in dayRecord && typeof dayRecord.status === 'string') {
-            // Old format: single record
-            recentRecords.push({
-              studentId,
-              studentName: student.name,
-              status: dayRecord.status,
-              subject: (dayRecord as any).subject || 'Unknown',
-              timeIn: (dayRecord as any).timeIn || 'N/A',
-              date
-            });
-          } else {
-            // New format: multiple classes per day
-            Object.values(dayRecord).forEach(classRecord => {
-              if (classRecord && typeof classRecord === 'object' && 'status' in classRecord && typeof classRecord.status === 'string') {
-                recentRecords.push({
-                  studentId,
-                  studentName: student.name,
-                  status: classRecord.status,
-                  subject: (classRecord as any).subject || 'Unknown',
-                  timeIn: (classRecord as any).timeIn || 'N/A',
-                  date
-                });
-              }
-            });
-          }
-        }
-      });
-    });
-
-    return recentRecords
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, limit);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variantMap: Record<string, "present" | "absent" | "late"> = {
-      present: "present",
-      absent: "absent",
-      late: "late"
-    };
-    
-    return (
-      <Badge variant={variantMap[status] || "outline"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
-
-  const recentAttendance = getRecentAttendance();
-
   if (!currentUser) {
     return (
       <Card className="w-full max-w-md mx-auto mt-8">
@@ -182,118 +112,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingRFID }) => {
 
   return (
     <div className="min-h-screen bg-light-gray">
-      {/* Header */}
-      <div className="bg-dark-blue text-white p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">ICCT RFID System</h1>
-            <p className="text-gray-light">Admin Portal</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="font-semibold">{currentUser.email}</p>
-              <p className="text-sm text-gray-light">Administrator</p>
-            </div>
-            <Button 
-              onClick={logout}
-              variant="outline"
-              className="bg-transparent border-white text-white hover:bg-white hover:text-dark-blue"
-            >
-              Logout
-            </Button>
-          </div>
-        </div>
-      </div>
+      <AdminHeader />
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Status indicators */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-          <div>
-            <h2 className="text-3xl font-bold text-dark-blue">Dashboard</h2>
-            <p className="text-gray-dark">System overview and management</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge variant={isConnected ? 'default' : 'secondary'} className="px-3 py-1">
-              {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
-            </Badge>
-            {pendingRFID && (
-              <Badge variant="outline" className="px-3 py-1 border-orange-500 text-orange-700">
-                Pending RFID: {pendingRFID}
-              </Badge>
-            )}
-          </div>
-        </div>
+        <DashboardStatusBar 
+          isConnected={isConnected}
+          pendingRFID={pendingRFID}
+        />
 
-        {/* Stats Overview */}
         <AttendanceStats 
           attendanceData={attendanceData} 
           students={dummyData.students} 
           filter={filter} 
         />
 
-        {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="attendance" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Attendance Records</CardTitle>
-                <CardDescription>Latest student check-ins and attendance status</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentAttendance.length > 0 ? (
-                    recentAttendance.map((record, index) => (
-                      <div key={`${record.studentId}-${record.date}-${index}`} 
-                           className="flex items-center justify-between p-3 border border-gray-medium rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-dark-blue">{record.studentName}</h4>
-                          <p className="text-sm text-gray-dark">{record.subject}</p>
-                          <p className="text-xs text-gray-500">{record.date} at {record.timeIn}</p>
-                        </div>
-                        <div>
-                          {getStatusBadge(record.status)}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No attendance records found</p>
-                      <p className="text-sm">Records will appear here when students scan their RFID cards</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="students" className="space-y-6">
-            <StudentManagement
-              pendingRFID={pendingRFID}
-            />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <AttendanceAnalytics 
-              attendanceData={attendanceData}
-              students={dummyData.students}
-            />
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-6">
-            <SettingsPanel 
-              isConnected={isConnected}
-              onToggleTracking={handleToggleTracking}
-            />
-          </TabsContent>
-        </Tabs>
+        <DashboardTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          attendanceData={attendanceData}
+          dummyData={dummyData}
+          pendingRFID={pendingRFID}
+          isConnected={isConnected}
+          onToggleTracking={handleToggleTracking}
+        />
       </div>
     </div>
   );
