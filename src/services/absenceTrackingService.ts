@@ -34,12 +34,14 @@ interface AbsenceAlert {
   totalAbsencesAtTime: number;
   absentDates: string[];
   emailSent: boolean;
+  nextAllowedEmailTime: number; // New field for 1-month cooldown
 }
 
 // Processing queue to prevent conflicts
 const processingQueue = new Set<string>();
 let isProcessing = false;
-const DEBOUNCE_DELAY = 2000; // 2 seconds debounce
+const DEBOUNCE_DELAY = 3000; // Increased to 3 seconds
+const EMAIL_COOLDOWN_PERIOD = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 let processTimeout: NodeJS.Timeout | null = null;
 
 const countStudentAbsences = (attendanceData: Record<string, DayAttendanceRecord>): { count: number; dates: string[] } => {
@@ -66,6 +68,47 @@ const getStudent = async (studentId: string): Promise<Student | null> => {
   } catch (error) {
     console.error('❌ Error fetching student data:', error);
     return null;
+  }
+};
+
+const checkEmailCooldown = async (studentId: string): Promise<boolean> => {
+  try {
+    const alertsRef = ref(database, `absenceAlerts/${studentId}`);
+    const snapshot = await get(alertsRef);
+    const alerts = snapshot.val();
+    
+    if (!alerts) {
+      console.log(`📊 No previous alerts found for student ${studentId}`);
+      return false; // No cooldown, can send email
+    }
+    
+    const currentTime = Date.now();
+    const existingAlerts = Object.values(alerts) as AbsenceAlert[];
+    
+    // Check if any alert is still within the cooldown period
+    const hasActiveCooldown = existingAlerts.some(alert => 
+      alert.emailSent && 
+      alert.nextAllowedEmailTime && 
+      currentTime < alert.nextAllowedEmailTime
+    );
+    
+    if (hasActiveCooldown) {
+      const newestAlert = existingAlerts
+        .filter(alert => alert.emailSent && alert.nextAllowedEmailTime)
+        .sort((a, b) => b.alertSentAt - a.alertSentAt)[0];
+      
+      const remainingCooldown = newestAlert.nextAllowedEmailTime - currentTime;
+      const daysRemaining = Math.ceil(remainingCooldown / (24 * 60 * 60 * 1000));
+      
+      console.log(`🚫 Student ${studentId} is in email cooldown period. ${daysRemaining} days remaining.`);
+      return true; // In cooldown, cannot send email
+    }
+    
+    console.log(`✅ Student ${studentId} cooldown period has expired, can send email`);
+    return false; // Cooldown expired, can send email
+  } catch (error) {
+    console.error('❌ Error checking email cooldown:', error);
+    return false; // If we can't check, allow email to be safe
   }
 };
 
@@ -103,7 +146,7 @@ const recordAbsenceAlert = async (studentId: string, alertData: AbsenceAlert): P
     const alertKey = `${Date.now()}_${alertData.totalAbsencesAtTime}`;
     const alertRef = ref(database, `absenceAlerts/${studentId}/${alertKey}`);
     await set(alertRef, alertData);
-    console.log('✅ Absence alert recorded in database for student:', studentId);
+    console.log(`✅ Absence alert recorded in database for student: ${studentId}`);
   } catch (error) {
     console.error('❌ Failed to record absence alert:', error);
   }
@@ -138,6 +181,13 @@ const processStudentAbsences = async (studentId: string, attendanceData: Record<
         return;
       }
       
+      // Check email cooldown period
+      const inCooldown = await checkEmailCooldown(studentId);
+      if (inCooldown) {
+        console.log(`🚫 Student ${studentId} is in email cooldown period, skipping email`);
+        return;
+      }
+      
       const student = await getStudent(studentId);
       if (!student) {
         console.error(`❌ Could not find student data for ID: ${studentId}`);
@@ -151,14 +201,19 @@ const processStudentAbsences = async (studentId: string, attendanceData: Record<
       
       console.log(`📧 Sending new absence alert for student ${studentId}`);
       
+      // Calculate next allowed email time (1 month from now)
+      const currentTime = Date.now();
+      const nextAllowedEmailTime = currentTime + EMAIL_COOLDOWN_PERIOD;
+      
       // Record alert attempt first
       const alertData: AbsenceAlert = {
         studentId,
         parentEmail: student.parentEmail,
-        alertSentAt: Date.now(),
+        alertSentAt: currentTime,
         totalAbsencesAtTime: absenceCount,
         absentDates: absentDates,
-        emailSent: false
+        emailSent: false,
+        nextAllowedEmailTime: nextAllowedEmailTime
       };
       
       await recordAbsenceAlert(studentId, alertData);
@@ -177,7 +232,7 @@ const processStudentAbsences = async (studentId: string, attendanceData: Record<
         // Update alert record to mark email as sent
         alertData.emailSent = true;
         await recordAbsenceAlert(studentId, alertData);
-        console.log(`✅ Absence alert sent successfully for student ${studentId}`);
+        console.log(`✅ Absence alert sent successfully for student ${studentId}. Next email allowed after: ${new Date(nextAllowedEmailTime).toLocaleDateString()}`);
       } else {
         console.error(`❌ Failed to send absence alert for student ${studentId}`);
       }
@@ -210,7 +265,7 @@ const debouncedProcessAttendance = (allAttendanceData: Record<string, Record<str
       for (const studentId of studentIds) {
         await processStudentAbsences(studentId, allAttendanceData[studentId]);
         // Small delay between students to prevent overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     } catch (error) {
       console.error('❌ Error in batch processing:', error);
@@ -222,7 +277,7 @@ const debouncedProcessAttendance = (allAttendanceData: Record<string, Record<str
 };
 
 export const initializeAbsenceTracking = (): (() => void) => {
-  console.log('🔍 Initializing absence tracking system...');
+  console.log('🔍 Initializing absence tracking system with 1-month email cooldown...');
   
   const attendanceRef = ref(database, 'attendanceRecords');
   
@@ -281,5 +336,36 @@ export const resetAbsenceAlerts = async (studentId?: string): Promise<void> => {
     }
   } catch (error) {
     console.error('❌ Error resetting absence alerts:', error);
+  }
+};
+
+// New function to check cooldown status for admin interface
+export const getStudentEmailCooldownStatus = async (studentId: string): Promise<{ inCooldown: boolean; daysRemaining?: number }> => {
+  try {
+    const alertsRef = ref(database, `absenceAlerts/${studentId}`);
+    const snapshot = await get(alertsRef);
+    const alerts = snapshot.val();
+    
+    if (!alerts) {
+      return { inCooldown: false };
+    }
+    
+    const currentTime = Date.now();
+    const existingAlerts = Object.values(alerts) as AbsenceAlert[];
+    
+    const activeAlert = existingAlerts
+      .filter(alert => alert.emailSent && alert.nextAllowedEmailTime && currentTime < alert.nextAllowedEmailTime)
+      .sort((a, b) => b.alertSentAt - a.alertSentAt)[0];
+    
+    if (activeAlert) {
+      const remainingTime = activeAlert.nextAllowedEmailTime - currentTime;
+      const daysRemaining = Math.ceil(remainingTime / (24 * 60 * 60 * 1000));
+      return { inCooldown: true, daysRemaining };
+    }
+    
+    return { inCooldown: false };
+  } catch (error) {
+    console.error('❌ Error checking cooldown status:', error);
+    return { inCooldown: false };
   }
 };
